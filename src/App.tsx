@@ -341,15 +341,11 @@ const App: React.FC = () => {
       })
       Promise.all(promises).then((value) => {
         if (messageRef.current) {
-          console.log('paki', messageRef.current);
           messageRef.current.destroy()
         }
         setImageList(value)
         setUploading(false)
       }).catch((error) => {
-        // if (messageRef.current) {
-        //   messageRef.current.destory()
-        // }
         console.log(error)
         setUploading(false)
       })
@@ -497,6 +493,12 @@ const App: React.FC = () => {
                     </>
                   }}
                 </TransformWrapper>
+              )}
+              {(!imageList[currentImage] && waterMarkValue.length === 0) && (
+                <div className="empty">
+                  <div>选择水印内容，可预览水印效果</div>
+                  <div>上传 pdf，导出带水印的文件</div>
+                </div>
               )}
             </div>
           </div>
