@@ -3,6 +3,7 @@ import * as pdfjsLib from 'pdfjs-dist';
 import html2canvas from 'html2canvas';
 import classNames from 'classnames';
 import { BlendMode, PDFDocument } from 'pdf-lib'
+import imageCompression from 'browser-image-compression';
 import { Button, Form, Input, Message, Checkbox, Radio, NumericInput, Alert, Pagination, Icon } from 'adui'
 import { TransformComponent, TransformWrapper, ReactZoomPanPinchRef, useControls } from 'react-zoom-pan-pinch'
 import { debounce } from 'lodash'
@@ -96,6 +97,8 @@ const createCanvasWidthImage = (canvasWidth: number, canvasHeight: number, devic
   }).then((value: Blob) => { return value }).catch(() => { })
 }
 
+
+
 const App: React.FC = () => {
   const [file, setFile] = useState<ArrayBuffer | string>('')
   const [fileName, setFileName] = useState('')
@@ -116,6 +119,8 @@ const App: React.FC = () => {
   const transformComponentRef = useRef<ReactZoomPanPinchRef | null>(null)
   const selectTransformRef = useRef<HTMLDivElement>(null)
   const uploadInputRef = useRef<HTMLInputElement>(null)
+  const imageListRef = useRef<HTMLDivElement>(null)
+  const messageRef = useRef<any>(null)
   const devicePixelRatio = window.devicePixelRatio
   const waterUnitWidth = 222
   const waterUnitHeight = 168
@@ -163,6 +168,10 @@ const App: React.FC = () => {
     const file = event.target.files?.[0];
     if (!file) return
     setUploading(true)
+    messageRef.current = Message.normal({
+      content: "文件解析中，请耐心等待",
+      duration: 0,
+    })
     const reader = new FileReader();
     reader.onload = (event) => {
       if (event.target?.result) {
@@ -308,17 +317,20 @@ const App: React.FC = () => {
           const viewport = page.getViewport({ scale: 1 });
           const imageWidth = viewport.width
           const imageHeight = viewport.height
+          const viewportScale = page.getViewport({ scale: devicePixelRatio })
           const canvas = document.createElement('canvas');
-          canvas.width = imageWidth
-          canvas.height = imageHeight
+          canvas.width = imageWidth * devicePixelRatio
+          canvas.height = imageHeight * devicePixelRatio
 
           const ctx = canvas.getContext('2d');
           if (!ctx) return
           const renderContext = {
             canvasContext: ctx,
-            viewport: viewport,
+            viewport: viewportScale,
           };
           await page.render(renderContext).promise;
+          canvas.style.width = `${imageWidth}px`
+          canvas.style.height = `${imageHeight}px`
           const url = canvas.toDataURL("image/png")
           resolve({
             width: imageWidth,
@@ -328,9 +340,16 @@ const App: React.FC = () => {
         })
       })
       Promise.all(promises).then((value) => {
+        if (messageRef.current) {
+          console.log('paki', messageRef.current);
+          messageRef.current.destroy()
+        }
         setImageList(value)
         setUploading(false)
       }).catch((error) => {
+        // if (messageRef.current) {
+        //   messageRef.current.destory()
+        // }
         console.log(error)
         setUploading(false)
       })
@@ -343,7 +362,7 @@ const App: React.FC = () => {
       clearTimeout(timer)
     }
 
-  }, [file])
+  }, [file, devicePixelRatio])
 
   useEffect(() => {
     const pages = Array.from(Array(imageList.length), (item, index) => index)
@@ -357,6 +376,17 @@ const App: React.FC = () => {
       height: imageList[currentImage].height
     })
   }, [currentImage, imageList])
+
+  useEffect(() => {
+    if (!imageListRef.current) return
+    const children = imageListRef.current.querySelectorAll('.images_item')
+    const target = children[currentImage]
+    const { bottom: parentBottom, top: parentTop } = imageListRef.current.getBoundingClientRect()
+    const { bottom: targetBottom, top: targetTop } = target.getBoundingClientRect()
+    if (targetBottom > parentBottom || targetTop < parentTop) {
+      target.scrollIntoView()
+    }
+  }, [currentImage])
 
   const checkboxContent = (
     <div>
@@ -397,14 +427,14 @@ const App: React.FC = () => {
   return (
     <div className="app">
       <div className="header">
-        <Icon icon="location-outlined" size={24} color="rgb(255, 255, 255)"></Icon>
+        <Icon style={{ transform: 'rotate(180deg)', marginRight: '8px' }} icon="location-outlined" size={24} color="rgb(255, 255, 255)"></Icon>
         <div className="logo_text">TAD WaterMarks for PDF</div>
       </div>
       <div className="main">
         <div className="left">
           <div className={classNames('left_inner', { 'left_inner_active': !!imageList[currentImage] })}>
             {imageList.length > 0 && (
-              <div className="images">
+              <div className="images" ref={imageListRef}>
                 {imageList.map((item, index) => {
                   return <div className={classNames('images_item', { 'images_item_active': index === currentImage })} onClick={() => { setCurrentImage(index) }}>
                     <div className="image_select" onClick={(event) => {
@@ -414,7 +444,7 @@ const App: React.FC = () => {
                       <Checkbox size="large" checked={selectedPages.includes(index)}></Checkbox>
                     </div>
                     <div className="images_item_inner" style={{ width: '100%', height: `${(160 / item.width) * item.height}px`, }}>
-                      <div style={{ width: 'fit-content', transform: `scale(${160 / item.width})`, transformOrigin: 'left top', position: 'relative' }}>
+                      <div style={{ width: 'fit-content', transform: `scale(${160 / (item.width * devicePixelRatio)})`, transformOrigin: 'left top', position: 'relative' }}>
                         <div style={{
                           position: 'absolute',
                           width: '100%',
@@ -433,16 +463,19 @@ const App: React.FC = () => {
                 })}
               </div>
             )}
-            <div className="left_main">
+            <div className={classNames('left_main', { 'left_main_images': imageList.length > 0 })}>
               {(imageList[currentImage] || waterMarkValue.length !== 0) && (
-                <TransformWrapper ref={transformComponentRef} centerOnInit centerZoomedOut minScale={0.5}>
+                <TransformWrapper ref={transformComponentRef} initialScale={0.8} centerOnInit centerZoomedOut minScale={0.2}>
                   {({ zoomIn, zoomOut }) => {
                     return <>
-                      <TransformComponent wrapperStyle={{ width: '100%', height: '100%' }}>
-                        <div className="selection_outer" ref={selectTransformRef} style={{ width: `${contentSize.width}px`, height: `${contentSize.height}px`, border: currentImage ? '' : '1px solid #C7C7C7' }}>
-                          <div className="selection" style={{ width: `${contentSize.width}px`, height: `${contentSize.height}px` }}>
+                      <TransformComponent wrapperStyle={{ width: '100%', height: '100%', overflow: 'hidden' }}>
+                        <div className="selection_outer" ref={selectTransformRef}>
+                          <div className="selection">
                             {imageList[currentImage] && <img style={{ width: '100%' }} alt='' src={imageList[currentImage].base64data}></img>}
                           </div>
+                          {(!file && waterMarkValue.length !== 0) && (
+                            <div style={{ border: '1px solid #C7C7C7', width: `${contentSize.width}px`, height: `${contentSize.height}px` }}></div>
+                          )}
                           <div className='watermark_cover'
                             style={{
                               backgroundImage: `url(${watermarkUnit})`,
@@ -458,8 +491,8 @@ const App: React.FC = () => {
                         {imageList.length > 1 && <Pagination size="medium" total={imageList.length} pageSize={1} showButtonJumper showInputJumper current={currentImage + 1} onChange={(value) => { setCurrentImage(value - 1) }}></Pagination>}
                       </div>
                       <Button.Group size="medium" className="scale_buttons">
-                        <Button leftIcon="minus" onClick={() => { zoomOut(0.25) }}></Button>
-                        <Button leftIcon="add" onClick={() => { zoomIn(0.25) }}></Button>
+                        <Button leftIcon="minus" onClick={() => { zoomOut(0.1) }}></Button>
+                        <Button leftIcon="add" onClick={() => { zoomIn(0.1) }}></Button>
                       </Button.Group>
                     </>
                   }}

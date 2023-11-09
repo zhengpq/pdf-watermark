@@ -34,6 +34,7 @@ img {
 
 .main {
   width: 100%;
+  max-width: 100vw;
   flex: 1;
   height: calc(100vh - 48px);
   background-color: white;
@@ -145,6 +146,12 @@ img {
 .left_main {
   flex: 1;
   position: relative;
+  overflow: hidden;
+  max-width: calc(100vw - 32px  - 280px);
+}
+
+.left_main_images .left_main {
+  max-width: calc(100vw - 32px - 193px - 280px);
 }
 
 .selection_outer {
