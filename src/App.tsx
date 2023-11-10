@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as pdfjsLib from 'pdfjs-dist';
 import html2canvas from 'html2canvas';
 import classNames from 'classnames';
@@ -26,7 +26,7 @@ type SizeDataKeys = keyof ISizeData
 interface ImageData {
   width: number
   height: number
-  base64data: string
+  canvas: HTMLCanvasElement
 }
 
 const getDomCanvas = async <T extends HTMLElement,>(dom: T, devicePixelRatio: number) => {
@@ -86,7 +86,7 @@ const createCanvasWidthImage = (canvasWidth: number, canvasHeight: number, devic
     canvas.style.position = "absolute"
     // eslint-disable-next-line @typescript-eslint/no-unused-expressions
     canvas.style.top = '0px',
-    canvas.style.left = '0px'
+      canvas.style.left = '0px'
     canvas.toBlob((blob) => {
       if (blob) {
         resolve(blob as Blob)
@@ -97,6 +97,16 @@ const createCanvasWidthImage = (canvasWidth: number, canvasHeight: number, devic
   }).then((value: Blob) => { return value }).catch(() => { })
 }
 
+const CanvasCom: React.FC<{ canvas: HTMLCanvasElement }> = ({ canvas }) => {
+  const divRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (divRef.current) {
+      divRef.current.innerHTML = ''
+      divRef.current.appendChild(canvas)
+    }
+  }, [canvas])
+  return <div ref={divRef}></div>
+}
 
 
 const App: React.FC = () => {
@@ -121,6 +131,7 @@ const App: React.FC = () => {
   const uploadInputRef = useRef<HTMLInputElement>(null)
   const imageListRef = useRef<HTMLDivElement>(null)
   const messageRef = useRef<any>(null)
+  const selectionRef = useRef<HTMLDivElement>(null)
   const devicePixelRatio = window.devicePixelRatio
   const waterUnitWidth = 222
   const waterUnitHeight = 168
@@ -331,11 +342,11 @@ const App: React.FC = () => {
           await page.render(renderContext).promise;
           canvas.style.width = `${imageWidth}px`
           canvas.style.height = `${imageHeight}px`
-          const url = canvas.toDataURL("image/png")
+          // const url = canvas.toDataURL("image/png")
           resolve({
             width: imageWidth,
             height: imageHeight,
-            base64data: url
+            canvas,
           })
         })
       })
@@ -362,16 +373,10 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const pages = Array.from(Array(imageList.length), (item, index) => index)
+    setCurrentImage(0)
     setSelectedPages(pages)
   }, [imageList])
 
-  useEffect(() => {
-    if (!imageList[currentImage]) return
-    setContentSize({
-      width: imageList[currentImage].width,
-      height: imageList[currentImage].height
-    })
-  }, [currentImage, imageList])
 
   useEffect(() => {
     if (!imageListRef.current) return
@@ -433,14 +438,16 @@ const App: React.FC = () => {
               <div className="images" ref={imageListRef}>
                 {imageList.map((item, index) => {
                   return <div className={classNames('images_item', { 'images_item_active': index === currentImage })} onClick={() => { setCurrentImage(index) }}>
-                    <div className="image_select" onClick={(event) => {
-                      event.stopPropagation()
-                      handleChangeSelectedPage(index)
-                    }}>
-                      <Checkbox size="large" checked={selectedPages.includes(index)}></Checkbox>
-                    </div>
+                    {waterMarkValue.length > 0 && (
+                      <div className="image_select" onClick={(event) => {
+                        event.stopPropagation()
+                        handleChangeSelectedPage(index)
+                      }}>
+                        <Checkbox size="large" checked={selectedPages.includes(index)}></Checkbox>
+                      </div>
+                    )}
                     <div className="images_item_inner" style={{ width: '100%', height: `${(160 / item.width) * item.height}px`, }}>
-                      <div style={{ width: 'fit-content', transform: `scale(${160 / (item.width * devicePixelRatio)})`, transformOrigin: 'left top', position: 'relative' }}>
+                      <div style={{ width: 'fit-content', transform: `scale(${160 / (item.width)})`, transformOrigin: 'left top', position: 'relative' }}>
                         <div style={{
                           position: 'absolute',
                           width: '100%',
@@ -451,7 +458,8 @@ const App: React.FC = () => {
                           backgroundSize: `222px ${waterMarkValue.length * 168}px`,
                           mixBlendMode: 'exclusion'
                         }}></div>
-                        <img src={item.base64data} alt="" />
+                        {/* <div className="canvas"></div> */}
+                        <CanvasCom canvas={item.canvas}></CanvasCom>
                       </div>
                     </div>
                     <div className="image_num">{index + 1}</div>
@@ -466,8 +474,9 @@ const App: React.FC = () => {
                     return <>
                       <TransformComponent wrapperStyle={{ width: '100%', height: '100%', overflow: 'hidden' }}>
                         <div className="selection_outer" ref={selectTransformRef}>
-                          <div className="selection">
-                            {imageList[currentImage] && <img style={{ width: '100%' }} alt='' src={imageList[currentImage].base64data}></img>}
+                          <div className="selection" ref={selectionRef}>
+                            {/* {imageList[currentImage] && imageList[currentImage].canvas} */}
+                            {imageList[currentImage] && <img style={{ width: '100%' }} alt='' src={imageList[currentImage].canvas.toDataURL()}></img>}
                           </div>
                           {(!file && waterMarkValue.length !== 0) && (
                             <div style={{ border: '1px solid #C7C7C7', width: `${contentSize.width}px`, height: `${contentSize.height}px` }}></div>
@@ -556,7 +565,6 @@ const App: React.FC = () => {
                   setContentSizeType(value)
                 }}>
                   {Object.entries(sizeData).map((entry) => {
-                    console.log('paki entry', entry);
                     return <Radio style={{ display: 'block', marginLeft: '0px' }} key={entry[0]} value={entry[0]}>{entry[1].desc}</Radio>
                   })}
                 </Radio.Group>
