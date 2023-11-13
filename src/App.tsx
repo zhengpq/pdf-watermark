@@ -17,13 +17,11 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = work
 
 type SizeDataKeys = keyof ISizeData
 
-// interface ImageData {
-//   base64Data: string
-//   width: number
-//   height: number
-//   name: string
-//   id: string
-// }
+interface WatermarkUnitData {
+  base64Data: string
+  bufferData: ArrayBuffer | string,
+  nums: number
+}
 
 interface ImageData {
   width: number
@@ -99,23 +97,11 @@ const createCanvasWidthImage = (canvasWidth: number, canvasHeight: number, devic
   }).then((value: Blob) => { return value }).catch(() => { })
 }
 
-const CanvasCom: React.FC<{ canvas: HTMLCanvasElement }> = ({ canvas }) => {
-  const divRef = useRef<HTMLDivElement>(null)
-  useEffect(() => {
-    if (divRef.current) {
-      divRef.current.innerHTML = ''
-      divRef.current.appendChild(canvas)
-    }
-  }, [canvas])
-  return <div ref={divRef}></div>
-}
-
 
 const App: React.FC = () => {
   const [file, setFile] = useState<ArrayBuffer | string>('')
   const [fileName, setFileName] = useState('')
-  const [watermarkBuffer, setWatermarkBuffer] = useState<ArrayBuffer | string>('')
-  const [watermarkUnit, setWatermarkUnit] = useState('')
+  const [watermarkUnit, setWatermarkUnit] = useState<WatermarkUnitData | null>(null)
   const [imageList, setImageList] = useState<ImageData[]>([])
   const [currentImage, setCurrentImage] = useState(0)
   const [waterMarkValue, setWaterMarkValue] = useState<Array<string>>([])
@@ -126,6 +112,7 @@ const App: React.FC = () => {
   const [hasCustomize, setHasCustomize] = useState(false)
   const [customizeContent, setCustomizeContent] = useState<string | undefined>('')
   const [customizeGenerateFinish, setCustomizeGenerateFinish] = useState(false)
+  const [generateWatermarkUnitFinish, setGenerateWatermarkUnitFinish] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [watermarkScale, setWatermarkScale] = useState(1)
   const watermarkUnitRef = useRef<HTMLDivElement>(null)
@@ -148,29 +135,39 @@ const App: React.FC = () => {
     const watermarkCanvas = await getDomCanvas(watermarkUnitRef.current, devicePixelRatio)
     // 获取水印单元 base64 数据
     const watermarkUnitImageBase64 = watermarkCanvas.toDataURL()
-    setWatermarkUnit(watermarkUnitImageBase64)
+    // setWatermarkUnit(watermarkUnitImageBase64)
     // 获取水印单元 buffer 数据
     watermarkCanvas.toBlob((blob) => {
       if (!blob) return
       const reader = new FileReader()
       reader.onload = () => {
         if (!reader.result) return
-        setWatermarkBuffer(reader.result)
+        // setWatermarkBuffer(reader.result)
+        setWatermarkUnit({
+          base64Data: watermarkUnitImageBase64,
+          bufferData: reader.result,
+          nums: waterMarkValue.length
+        })
+        Message.success({
+          content: "已应用水印内容",
+        })
+        setGenerateWatermarkUnitFinish(true)
       }
       reader.readAsArrayBuffer(blob)
     })
-  }, [devicePixelRatio])
+  }, [devicePixelRatio, waterMarkValue])
 
   const handleCheckboxChange = (value: string[]) => {
     if (value.length === 3) {
       value.shift()
     }
     setWaterMarkValue(value)
+    setGenerateWatermarkUnitFinish(false)
   }
 
   const handleGenerateCustomize = async () => {
     if (customizeGenerateFinish) return
-    await generateWatermarkUnit()
+    // await generateWatermarkUnit()
     setCustomizeGenerateFinish(true)
   }
 
@@ -199,7 +196,8 @@ const App: React.FC = () => {
   }
   const handleDownload = async () => {
     const pdfDoc = await PDFDocument.load(file);
-    const watermarkImage = await pdfDoc.embedPng(watermarkBuffer);
+    if (!watermarkUnit?.bufferData) return
+    const watermarkImage = await pdfDoc.embedPng(watermarkUnit?.bufferData);
     for (let i = 0; i < pdfDoc.getPageCount(); i++) {
       if (selectedPages.includes(i)) {
         const page = pdfDoc.getPage(i);
@@ -226,7 +224,6 @@ const App: React.FC = () => {
       }
     }
     const pdfWithWatermarkBytes = await pdfDoc.save({ useObjectStreams: true });
-    console.log('paki compress start');
     // const bufferData = Buffer.from(pdfWithWatermarkBytes)
     // const base64String = bufferData.toString("base64")
     // axios({
@@ -291,7 +288,8 @@ const App: React.FC = () => {
   const handleGenerateImage = async () => {
     setGenerating(true)
     // 生成水印单元的 canvas
-    const watermarkUnitImage = await base64ToImage(watermarkUnit)
+    if (!watermarkUnit?.base64Data) return
+    const watermarkUnitImage = await base64ToImage(watermarkUnit.base64Data)
     const tempCanvas = document.createElement("canvas");
     const tempCtx = tempCanvas.getContext("2d");
     if (!tempCtx) return
@@ -320,18 +318,22 @@ const App: React.FC = () => {
     setGenerating(false)
   }
 
-  useEffect(() => {
-    generateWatermarkUnit()
-  }, [waterMarkValue, generateWatermarkUnit])
+  const handleClearFile = () => {
+    setFile('')
+    setImageList([])
+    setCurrentImage(0)
+    setFileName('')
+    setWatermarkScale(1)
+    if (uploadInputRef.current) {
+      uploadInputRef.current.value = ''
+    }
+  }
+
 
   useEffect(() => {
     if (waterMarkValue.includes('customize')) {
-      if (customizeGenerateFinish) {
-        generateWatermarkUnit()
-      }
       setHasCustomize(true)
     } else {
-      generateWatermarkUnit()
       setHasCustomize(false)
       setCustomizeGenerateFinish(false)
     }
@@ -418,7 +420,7 @@ const App: React.FC = () => {
     })
 
     //设置背景的缩放倍数
-    if (!leftMainRef.current || !pageWidth.current) return
+    if (!leftMainRef.current || !pageWidth.current || imageList.length === 0) return
     const { clientWidth } = leftMainRef.current
     setWatermarkScale(clientWidth / pageWidth.current)
   }, [imageList])
@@ -484,7 +486,7 @@ const App: React.FC = () => {
               <div className="images" ref={imageListRef}>
                 {imageList.map((item, index) => {
                   return <div className={classNames('images_item', { 'images_item_active': index === currentImage })} onClick={() => { setCurrentImage(index) }}>
-                    {waterMarkValue.length > 0 && (
+                    {watermarkUnit && (
                       <div className="image_select" onClick={(event) => {
                         event.stopPropagation()
                         handleChangeSelectedPage(index)
@@ -494,18 +496,7 @@ const App: React.FC = () => {
                     )}
                     <div className="images_item_inner" style={{ width: '100%', height: `${(160 / item.width) * item.height}px`, }}>
                       <div style={{ width: 'fit-content', transform: `scale(${160 / (item.width)})`, transformOrigin: 'left top', position: 'relative' }}>
-                        {/* <div style={{
-                          position: 'absolute',
-                          width: '100%',
-                          height: '100%',
-                          zIndex: 100,
-                          backgroundImage: `url(${watermarkUnit})`,
-                          backgroundRepeat: 'repeat',
-                          backgroundSize: `222px ${waterMarkValue.length * 168}px`,
-                          mixBlendMode: 'exclusion'
-                        }}></div> */}
                         <div className="canvas"></div>
-                        {/* <CanvasCom canvas={item.canvas}></CanvasCom> */}
                       </div>
                     </div>
                     <div className="image_num">{index + 1}</div>
@@ -529,10 +520,10 @@ const App: React.FC = () => {
                           )}
                           <div className='watermark_cover'
                             style={{
-                              backgroundImage: `url(${watermarkUnit})`,
+                              backgroundImage: `url(${watermarkUnit?.base64Data})`,
                               backgroundRepeat: 'repeat',
                               backgroundPosition: file ? '0px 0px' : `-${offsetX}px 0px`,
-                              backgroundSize: `${waterUnitWidth * watermarkScale}px ${waterMarkValue.length * 168 * watermarkScale}px`,
+                              backgroundSize: `${waterUnitWidth * watermarkScale}px ${(watermarkUnit?.nums || waterMarkValue.length) * 168 * watermarkScale}px`,
                               mixBlendMode: 'exclusion'
                             }}>
                           </div>
@@ -586,19 +577,28 @@ const App: React.FC = () => {
               <div className="upload_button">
                 <input ref={uploadInputRef} className="button_input" accept=".pdf" type="file" onChange={handleFileChange} />
                 {!fileName && <Button loading={uploading} size="medium" onClick={handleUpload} style={{ width: '100%' }} leftIcon="upload">上传文件</Button>}
-                {fileName && <Button className='file_name_button' loading={uploading} size="medium" onClick={handleUpload} style={{ width: '100%' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', minWidth: 0 }}>
-                    <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', flex: 1, textAlign: 'left' }}>{fileName}</div>
-                    <Icon icon='refresh'></Icon>
+                {fileName && (
+                  <div className="file_name_button">
+                    <div style={{ display: 'flex', alignItems: 'center', minWidth: 0 }}>
+                      <div className="file_name" style={{ overflow: 'hidden', textOverflow: 'ellipsis', flex: 1, textAlign: 'left' }}>{fileName}</div>
+                      <div className="file_name_operator">
+                        <Button onClick={handleUpload} leftIcon="refresh" size="mini" theme="light"></Button>
+                        <div style={{ width: '1px', margin: '0 6px', height: '16px', backgroundColor: 'var(--transparent-gray-300)', flex: 'none' }}></div>
+                        <Button onClick={handleClearFile} leftIcon="delete-outlined" size="mini" theme="light"></Button>
+                      </div>
+                    </div>
                   </div>
-                </Button>}
+                )}
               </div>
             </div>
             <div className="divider"></div>
             <div>
               <div className="right_title">
-                <div>水印内容</div>
-                <div className="watermark_number" style={{ marginLeft: '8px' }}>{waterMarkValue.length}/2</div>
+                <div className="right_title_inner">
+                  <div>水印内容</div>
+                  <div className="watermark_number" style={{ marginLeft: '8px' }}>{waterMarkValue.length}/2</div>
+                </div>
+                {waterMarkValue.length > 0 && <Button onClick={generateWatermarkUnit}>应用</Button>}
               </div>
               <div className="right_checkbox">{checkboxContent}</div>
               <div className="divider"></div>
@@ -626,8 +626,8 @@ const App: React.FC = () => {
             </div>
           </div>
           <div className="right_bottom">
-            {file && <Button intent="primary" onClick={handleDownload} loading={generating} disabled={(waterMarkValue.length === 0) || (hasCustomize && !customizeGenerateFinish)} style={{ width: '100%' }}>导出文件</Button>}
-            {!file && <Button intent="primary" onClick={handleGenerateImage} loading={generating} disabled={(waterMarkValue.length === 0) || (hasCustomize && !customizeGenerateFinish)} style={{ width: '100%' }} >导出空白水印</Button>}
+            {file && <Button intent="primary" onClick={handleDownload} loading={generating} disabled={!watermarkUnit || !generateWatermarkUnitFinish} style={{ width: '100%' }}>导出文件</Button>}
+            {!file && <Button intent="primary" onClick={handleGenerateImage} loading={generating} disabled={!watermarkUnit || !generateWatermarkUnitFinish} style={{ width: '100%' }} >导出空白水印</Button>}
           </div>
         </div>
       </div>
