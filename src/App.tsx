@@ -407,6 +407,7 @@ const App: React.FC = () => {
     const imageDoms = document.getElementsByClassName('images_item')
     Array.from(imageDoms).forEach((item, index) => {
       const canvasDom = item.getElementsByClassName('canvas')[0]
+      canvasDom.innerHTML = ''
       canvasDom.appendChild(imageList[index].canvas)
     })
   }, [imageList])
