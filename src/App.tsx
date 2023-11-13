@@ -127,6 +127,7 @@ const App: React.FC = () => {
   const [customizeContent, setCustomizeContent] = useState<string | undefined>('')
   const [customizeGenerateFinish, setCustomizeGenerateFinish] = useState(false)
   const [uploading, setUploading] = useState(false)
+  const [watermarkScale, setWatermarkScale] = useState(1)
   const watermarkUnitRef = useRef<HTMLDivElement>(null)
   const transformComponentRef = useRef<ReactZoomPanPinchRef | null>(null)
   const selectTransformRef = useRef<HTMLDivElement>(null)
@@ -134,6 +135,8 @@ const App: React.FC = () => {
   const imageListRef = useRef<HTMLDivElement>(null)
   const messageRef = useRef<any>(null)
   const selectionRef = useRef<HTMLDivElement>(null)
+  const leftMainRef = useRef<HTMLDivElement>(null)
+  const pageWidth = useRef(0)
   const devicePixelRatio = window.devicePixelRatio
   const waterUnitWidth = 222
   const waterUnitHeight = 168
@@ -222,7 +225,7 @@ const App: React.FC = () => {
         }
       }
     }
-    const pdfWithWatermarkBytes = await pdfDoc.save({useObjectStreams: true});
+    const pdfWithWatermarkBytes = await pdfDoc.save({ useObjectStreams: true });
     console.log('paki compress start');
     // const bufferData = Buffer.from(pdfWithWatermarkBytes)
     // const base64String = bufferData.toString("base64")
@@ -354,6 +357,9 @@ const App: React.FC = () => {
           const viewport = page.getViewport({ scale: 1 });
           const imageWidth = viewport.width
           const imageHeight = viewport.height
+          if (itemIndex === 0) {
+            pageWidth.current = imageWidth
+          }
           const viewportScale = page.getViewport({ scale: devicePixelRatio })
           const canvas = document.createElement('canvas');
           canvas.className = `canvas_${itemIndex}`
@@ -410,6 +416,11 @@ const App: React.FC = () => {
       canvasDom.innerHTML = ''
       canvasDom.appendChild(imageList[index].canvas)
     })
+
+    //设置背景的缩放倍数
+    if (!leftMainRef.current || !pageWidth.current) return
+    const { clientWidth } = leftMainRef.current
+    setWatermarkScale(clientWidth / pageWidth.current)
   }, [imageList])
 
 
@@ -468,7 +479,7 @@ const App: React.FC = () => {
       </div>
       <div className="main">
         <div className="left">
-          <div className={classNames('left_inner', { 'left_inner_active': !!imageList[currentImage] })}>
+          <div ref={leftMainRef} className={classNames('left_inner', { 'left_inner_active': !!imageList[currentImage] })}>
             {imageList.length > 0 && (
               <div className="images" ref={imageListRef}>
                 {imageList.map((item, index) => {
@@ -521,7 +532,7 @@ const App: React.FC = () => {
                               backgroundImage: `url(${watermarkUnit})`,
                               backgroundRepeat: 'repeat',
                               backgroundPosition: file ? '0px 0px' : `-${offsetX}px 0px`,
-                              backgroundSize: `222px ${waterMarkValue.length * 168}px`,
+                              backgroundSize: `${waterUnitWidth * watermarkScale}px ${waterMarkValue.length * 168 * watermarkScale}px`,
                               mixBlendMode: 'exclusion'
                             }}>
                           </div>

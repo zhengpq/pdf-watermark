@@ -158,6 +158,10 @@ img {
   position: relative;
 }
 
+.selection {
+  position: relative;
+}
+
 .watermark_cover {
   position: absolute;
   top: 0;
