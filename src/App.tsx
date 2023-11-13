@@ -7,6 +7,8 @@ import imageCompression from 'browser-image-compression';
 import { Button, Form, Input, Message, Checkbox, Radio, NumericInput, Alert, Pagination, Icon } from 'adui'
 import { TransformComponent, TransformWrapper, ReactZoomPanPinchRef, useControls } from 'react-zoom-pan-pinch'
 import { debounce } from 'lodash'
+import axios from 'axios'
+import { Buffer } from 'buffer';
 import './App.css';
 import { waterMarkData, sizeData, ISizeData } from './data'
 const work = require('pdfjs-dist/build/pdf.worker')
@@ -220,8 +222,32 @@ const App: React.FC = () => {
         }
       }
     }
-    const pdfWithWatermarkBytes = await pdfDoc.save();
-    const blob = new Blob([pdfWithWatermarkBytes], { type: 'application/pdf' });
+    const pdfWithWatermarkBytes = await pdfDoc.save({useObjectStreams: true});
+    console.log('paki compress start');
+    // const bufferData = Buffer.from(pdfWithWatermarkBytes)
+    // const base64String = bufferData.toString("base64")
+    // axios({
+    //   method: 'post',
+    //   url: 'http://localhost:8001/api/pdf/compress',
+    //   data: {
+    //     fileName: fileName.replaceAll('.pdf', ''),
+    //     fileData: base64String
+    //   }
+    // }).then((data) => {
+    //   console.log('paki compress', data.data.data.data);
+    //   const blob = new Blob([new Uint8Array(data.data.data.data)], { type: 'application/pdf' });
+    //   const url = URL.createObjectURL(blob);
+
+    //   const link = document.createElement('a');
+    //   link.href = url;
+    //   const newName = fileName.replaceAll('.pdf', '')
+    //   link.download = `${newName}_watermark.pdf`
+    //   link.click();
+    //   URL.revokeObjectURL(url);
+    // }).catch((error) => {
+    //   console.log('paki error', error);
+    // })
+    const blob = new Blob([new Uint8Array(pdfWithWatermarkBytes)], { type: 'application/pdf' });
     const url = URL.createObjectURL(blob);
 
     const link = document.createElement('a');
@@ -322,7 +348,7 @@ const App: React.FC = () => {
       const fileCopy = file.slice(0)
       const pdfData = new Uint8Array((fileCopy as ArrayBufferLike));
       const pdf = await pdfjsLib.getDocument({ data: pdfData }).promise;
-      const promises = Array.from(Array(pdf.numPages), (item, index) => index).map((item) => {
+      const promises = Array.from(Array(pdf.numPages), (item, index) => index).map((item, itemIndex) => {
         return new Promise<ImageData>(async (resolve, reject) => {
           const page = await pdf.getPage(item + 1);
           const viewport = page.getViewport({ scale: 1 });
@@ -330,6 +356,7 @@ const App: React.FC = () => {
           const imageHeight = viewport.height
           const viewportScale = page.getViewport({ scale: devicePixelRatio })
           const canvas = document.createElement('canvas');
+          canvas.className = `canvas_${itemIndex}`
           canvas.width = imageWidth * devicePixelRatio
           canvas.height = imageHeight * devicePixelRatio
 
@@ -375,6 +402,13 @@ const App: React.FC = () => {
     const pages = Array.from(Array(imageList.length), (item, index) => index)
     setCurrentImage(0)
     setSelectedPages(pages)
+
+    // 页面插入 canvas 节点
+    const imageDoms = document.getElementsByClassName('images_item')
+    Array.from(imageDoms).forEach((item, index) => {
+      const canvasDom = item.getElementsByClassName('canvas')[0]
+      canvasDom.appendChild(imageList[index].canvas)
+    })
   }, [imageList])
 
 
@@ -448,7 +482,7 @@ const App: React.FC = () => {
                     )}
                     <div className="images_item_inner" style={{ width: '100%', height: `${(160 / item.width) * item.height}px`, }}>
                       <div style={{ width: 'fit-content', transform: `scale(${160 / (item.width)})`, transformOrigin: 'left top', position: 'relative' }}>
-                        <div style={{
+                        {/* <div style={{
                           position: 'absolute',
                           width: '100%',
                           height: '100%',
@@ -457,9 +491,9 @@ const App: React.FC = () => {
                           backgroundRepeat: 'repeat',
                           backgroundSize: `222px ${waterMarkValue.length * 168}px`,
                           mixBlendMode: 'exclusion'
-                        }}></div>
-                        {/* <div className="canvas"></div> */}
-                        <CanvasCom canvas={item.canvas}></CanvasCom>
+                        }}></div> */}
+                        <div className="canvas"></div>
+                        {/* <CanvasCom canvas={item.canvas}></CanvasCom> */}
                       </div>
                     </div>
                     <div className="image_num">{index + 1}</div>
