@@ -111,7 +111,7 @@ const App: React.FC = () => {
   const [generating, setGenerating] = useState(false)
   const [hasCustomize, setHasCustomize] = useState(false)
   const [customizeContent, setCustomizeContent] = useState<string | undefined>('')
-  const [customizeGenerateFinish, setCustomizeGenerateFinish] = useState(false)
+  // const [customizeGenerateFinish, setCustomizeGenerateFinish] = useState(false)
   const [generateWatermarkUnitFinish, setGenerateWatermarkUnitFinish] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [watermarkScale, setWatermarkScale] = useState(1)
@@ -165,11 +165,11 @@ const App: React.FC = () => {
     setGenerateWatermarkUnitFinish(false)
   }
 
-  const handleGenerateCustomize = async () => {
-    if (customizeGenerateFinish) return
-    // await generateWatermarkUnit()
-    setCustomizeGenerateFinish(true)
-  }
+  // const handleGenerateCustomize = async () => {
+  //   if (customizeGenerateFinish) return
+  //   // await generateWatermarkUnit()
+  //   setCustomizeGenerateFinish(true)
+  // }
 
   const handleUpload = () => {
     if (uploadInputRef.current) {
@@ -180,6 +180,8 @@ const App: React.FC = () => {
   const handleFileChange: React.ChangeEventHandler<HTMLInputElement> = async (event) => {
     const file = event.target.files?.[0];
     if (!file) return
+    transformComponentRef.current?.resetTransform()
+    transformComponentRef.current?.centerView(0.8)
     setUploading(true)
     messageRef.current = Message.normal({
       content: "文件解析中，请耐心等待",
@@ -324,6 +326,8 @@ const App: React.FC = () => {
     setCurrentImage(0)
     setFileName('')
     setWatermarkScale(1)
+    transformComponentRef.current?.resetTransform()
+    transformComponentRef.current?.centerView(0.8)
     if (uploadInputRef.current) {
       uploadInputRef.current.value = ''
     }
@@ -335,9 +339,9 @@ const App: React.FC = () => {
       setHasCustomize(true)
     } else {
       setHasCustomize(false)
-      setCustomizeGenerateFinish(false)
+      // setCustomizeGenerateFinish(false)
     }
-  }, [waterMarkValue, customizeGenerateFinish, generateWatermarkUnit])
+  }, [waterMarkValue])
 
   useEffect(() => {
     if (!contentSizeType) return
@@ -348,6 +352,7 @@ const App: React.FC = () => {
   }, [contentSizeType])
 
   useEffect(() => {
+    console.log('paki file');
     const genetateImages = async () => {
       if (!file) return
       const fileCopy = file.slice(0)
@@ -458,7 +463,7 @@ const App: React.FC = () => {
             intent={(customizeContent !== undefined && customizeContent.length > 20) ? 'danger' : 'normal'}
           >
           </Input.Textarea>
-          <Button
+          {/* <Button
             onClick={handleGenerateCustomize}
             intent={customizeGenerateFinish ? 'success' : 'normal'}
             leftIcon={customizeGenerateFinish ? 'tick-circle' : undefined}
@@ -468,9 +473,10 @@ const App: React.FC = () => {
             disabled={customizeContent !== undefined && customizeContent.length > 20}
           >
             {customizeGenerateFinish ? '已应用自定义内容' : '完成输入'}
-          </Button>
+          </Button> */}
         </div>
       )}
+      <Button onClick={generateWatermarkUnit} size="medium" style={{ width: '100%', marginTop: '16px' }}>应用水印内容</Button>
     </div>
   )
   return (
@@ -576,7 +582,7 @@ const App: React.FC = () => {
               </div>
               <div className="upload_button">
                 <input ref={uploadInputRef} className="button_input" accept=".pdf" type="file" onChange={handleFileChange} />
-                {!fileName && <Button loading={uploading} size="medium" onClick={handleUpload} style={{ width: '100%' }} leftIcon="upload">上传文件</Button>}
+                {!fileName && <Button loading={uploading} size="medium" onClick={handleUpload} style={{ width: '100%', height: '42px' }} leftIcon="upload">上传文件</Button>}
                 {fileName && (
                   <div className="file_name_button">
                     <div style={{ display: 'flex', alignItems: 'center', minWidth: 0 }}>
@@ -598,7 +604,7 @@ const App: React.FC = () => {
                   <div>水印内容</div>
                   <div className="watermark_number" style={{ marginLeft: '8px' }}>{waterMarkValue.length}/2</div>
                 </div>
-                {waterMarkValue.length > 0 && <Button onClick={generateWatermarkUnit}>应用</Button>}
+                {/* {waterMarkValue.length > 0 && <Button onClick={generateWatermarkUnit}>应用</Button>} */}
               </div>
               <div className="right_checkbox">{checkboxContent}</div>
               <div className="divider"></div>
