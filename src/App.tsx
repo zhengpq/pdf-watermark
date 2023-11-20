@@ -4,9 +4,9 @@ import html2canvas from 'html2canvas';
 import classNames from 'classnames';
 import { BlendMode, PDFDocument } from 'pdf-lib'
 import imageCompression from 'browser-image-compression';
-import { Button, Form, Input, Message, Checkbox, Radio, NumericInput, Alert, Pagination, Icon } from 'adui'
+import { Button, Form, Input, Message, Checkbox, Radio, NumericInput, Alert, Pagination, Icon, Popover } from 'adui'
 import { TransformComponent, TransformWrapper, ReactZoomPanPinchRef, useControls } from 'react-zoom-pan-pinch'
-import { debounce } from 'lodash'
+import { debounce, throttle } from 'lodash'
 import axios from 'axios'
 import { Buffer } from 'buffer';
 import './App.css';
@@ -59,44 +59,6 @@ const base64ToImage = (base64: string) => {
   }).then((value: HTMLImageElement) => { return value }).catch((event) => { throw event })
 }
 
-const createCanvasWidthImage = (canvasWidth: number, canvasHeight: number, devicePixelRatio: number, waterUnit: HTMLCanvasElement, offsetX = 0, selectImage?: HTMLImageElement) => {
-  return new Promise<Blob>((resolve, reject) => {
-    const canvas = document.createElement('canvas')
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
-    const width = canvasWidth * devicePixelRatio
-    const height = canvasHeight * devicePixelRatio
-    canvas.width = width
-    canvas.height = height
-    // 绘制图片
-    if (selectImage) {
-      ctx.globalCompositeOperation = 'exclusion'
-      ctx.drawImage(selectImage, 0, 0, width, height)
-    }
-    // 绘制水印
-    ctx.globalCompositeOperation = 'exclusion'
-    const pattern = ctx.createPattern(waterUnit, "repeat");
-    if (!pattern) return
-    ctx.translate(offsetX, 0)
-    ctx.fillStyle = pattern
-    ctx.fillRect(-offsetX, 0, width, height)
-    // 绘制结束缩小宽高，保证不会模糊
-    canvas.style.width = `${canvasWidth}px`
-    canvas.style.height = `${canvasHeight}px`
-    canvas.style.position = "absolute"
-    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-    canvas.style.top = '0px',
-      canvas.style.left = '0px'
-    canvas.toBlob((blob) => {
-      if (blob) {
-        resolve(blob as Blob)
-      } else {
-        reject()
-      }
-    })
-  }).then((value: Blob) => { return value }).catch(() => { })
-}
-
 
 const App: React.FC = () => {
   const [file, setFile] = useState<ArrayBuffer | string>('')
@@ -105,16 +67,14 @@ const App: React.FC = () => {
   const [imageList, setImageList] = useState<ImageData[]>([])
   const [currentImage, setCurrentImage] = useState(0)
   const [waterMarkValue, setWaterMarkValue] = useState<Array<string>>([])
-  const [contentSizeType, setContentSizeType] = useState<SizeDataKeys | null>('size1')
   const [selectedPages, setSelectedPages] = useState<number[]>([])
-  const [contentSize, setContentSize] = useState({ width: sizeData.size1.size[0], height: sizeData.size1.size[1] })
+  const [slideHidden, setSlideHidden] = useState(false)
   const [generating, setGenerating] = useState(false)
   const [hasCustomize, setHasCustomize] = useState(false)
   const [customizeContent, setCustomizeContent] = useState<string | undefined>('')
-  // const [customizeGenerateFinish, setCustomizeGenerateFinish] = useState(false)
   const [generateWatermarkUnitFinish, setGenerateWatermarkUnitFinish] = useState(false)
   const [uploading, setUploading] = useState(false)
-  const [watermarkScale, setWatermarkScale] = useState(1)
+  const [watermarkSize, setWatermarkSize] = useState({ width: 0})
   const watermarkUnitRef = useRef<HTMLDivElement>(null)
   const transformComponentRef = useRef<ReactZoomPanPinchRef | null>(null)
   const selectTransformRef = useRef<HTMLDivElement>(null)
@@ -123,7 +83,10 @@ const App: React.FC = () => {
   const messageRef = useRef<any>(null)
   const selectionRef = useRef<HTMLDivElement>(null)
   const leftMainRef = useRef<HTMLDivElement>(null)
+  const waterCoverRef = useRef<HTMLDivElement>(null)
+  const waterCoverImageRef = useRef<HTMLDivElement>(null)
   const pageWidth = useRef(0)
+  const selectOutInitWidth = useRef(0)
   const devicePixelRatio = window.devicePixelRatio
   const waterUnitWidth = 222
   const waterUnitHeight = 168
@@ -140,7 +103,7 @@ const App: React.FC = () => {
     watermarkCanvas.toBlob((blob) => {
       if (!blob) return
       const reader = new FileReader()
-      reader.onload = () => {
+      reader.onload = async () => {
         if (!reader.result) return
         // setWatermarkBuffer(reader.result)
         setWatermarkUnit({
@@ -148,6 +111,11 @@ const App: React.FC = () => {
           bufferData: reader.result,
           nums: waterMarkValue.length
         })
+        if (!waterCoverRef.current || !waterCoverImageRef.current) return
+        const waterCoverCanvas = await getDomCanvas(waterCoverRef.current, devicePixelRatio)
+        const image = await base64ToImage(waterCoverCanvas.toDataURL('image/png'))
+        waterCoverImageRef.current.innerHTML = ''
+        waterCoverImageRef.current.appendChild(image)
         Message.success({
           content: "已应用水印内容",
         })
@@ -165,12 +133,6 @@ const App: React.FC = () => {
     setGenerateWatermarkUnitFinish(false)
   }
 
-  // const handleGenerateCustomize = async () => {
-  //   if (customizeGenerateFinish) return
-  //   // await generateWatermarkUnit()
-  //   setCustomizeGenerateFinish(true)
-  // }
-
   const handleUpload = () => {
     if (uploadInputRef.current) {
       uploadInputRef.current.click()
@@ -180,8 +142,6 @@ const App: React.FC = () => {
   const handleFileChange: React.ChangeEventHandler<HTMLInputElement> = async (event) => {
     const file = event.target.files?.[0];
     if (!file) return
-    transformComponentRef.current?.resetTransform()
-    transformComponentRef.current?.centerView(0.8)
     setUploading(true)
     messageRef.current = Message.normal({
       content: "文件解析中，请耐心等待",
@@ -226,29 +186,6 @@ const App: React.FC = () => {
       }
     }
     const pdfWithWatermarkBytes = await pdfDoc.save({ useObjectStreams: true });
-    // const bufferData = Buffer.from(pdfWithWatermarkBytes)
-    // const base64String = bufferData.toString("base64")
-    // axios({
-    //   method: 'post',
-    //   url: 'http://localhost:8001/api/pdf/compress',
-    //   data: {
-    //     fileName: fileName.replaceAll('.pdf', ''),
-    //     fileData: base64String
-    //   }
-    // }).then((data) => {
-    //   console.log('paki compress', data.data.data.data);
-    //   const blob = new Blob([new Uint8Array(data.data.data.data)], { type: 'application/pdf' });
-    //   const url = URL.createObjectURL(blob);
-
-    //   const link = document.createElement('a');
-    //   link.href = url;
-    //   const newName = fileName.replaceAll('.pdf', '')
-    //   link.download = `${newName}_watermark.pdf`
-    //   link.click();
-    //   URL.revokeObjectURL(url);
-    // }).catch((error) => {
-    //   console.log('paki error', error);
-    // })
     const blob = new Blob([new Uint8Array(pdfWithWatermarkBytes)], { type: 'application/pdf' });
     const url = URL.createObjectURL(blob);
 
@@ -271,65 +208,40 @@ const App: React.FC = () => {
     setSelectedPages([...selectedPages])
   }
 
-  const handleChangeContentSize = useCallback(debounce((type: 'width' | 'height', value: string | undefined) => {
-    if (value === undefined) return
-    if (type === 'width') {
-      setContentSize({
-        width: Number(value),
-        height: contentSize.height
-      })
-    }
-    if (type === 'height') {
-      setContentSize({
-        width: contentSize.width,
-        height: Number(value)
-      })
-    }
-  }, 150, { leading: true, trailing: true }), [contentSize])
-
-  const handleGenerateImage = async () => {
-    setGenerating(true)
-    // 生成水印单元的 canvas
-    if (!watermarkUnit?.base64Data) return
-    const watermarkUnitImage = await base64ToImage(watermarkUnit.base64Data)
-    const tempCanvas = document.createElement("canvas");
-    const tempCtx = tempCanvas.getContext("2d");
-    if (!tempCtx) return
-    const tempImageWidth = waterUnitWidth * devicePixelRatio;
-    const tempImageHeight = waterUnitHeight * waterMarkValue.length * devicePixelRatio;
-    tempCanvas.width = tempImageWidth
-    tempCanvas.height = tempImageHeight
-    tempCtx.drawImage(
-      watermarkUnitImage,
-      0,
-      0,
-      tempImageWidth,
-      tempImageHeight
-    );
-    // 如果没有选中图层，直接生成水印
-    const blob = await createCanvasWidthImage(contentSize.width, contentSize.height, devicePixelRatio, tempCanvas, offsetX)
-    const fileName = `watermark_${contentSize.width}x${contentSize.height}@2x`;
-    const downloadLink = document.createElement("a");
-    const url = URL.createObjectURL(blob as Blob);
-    downloadLink.href = url
-    downloadLink.download = `${fileName}.png`;
-    document.body.appendChild(downloadLink);
-    downloadLink.click();
-    document.body.removeChild(downloadLink);
-    URL.revokeObjectURL(url);
-    setGenerating(false)
-  }
-
   const handleClearFile = () => {
     setFile('')
     setImageList([])
     setCurrentImage(0)
     setFileName('')
-    setWatermarkScale(1)
+    setWatermarkSize({ width: 0 })
     transformComponentRef.current?.resetTransform()
     transformComponentRef.current?.centerView(0.8)
     if (uploadInputRef.current) {
       uploadInputRef.current.value = ''
+    }
+  }
+
+  const handleWheel: React.WheelEventHandler<HTMLDivElement> = useCallback(throttle((event) => {
+    const { deltaY } = event
+    const max = imageList.length - 1
+    const min = 0
+    if (deltaY > 0) {
+      const result = currentImage + 1
+      if (result > max) return
+      setCurrentImage(result)
+    }
+    if (deltaY < 0) {
+      const result = currentImage - 1
+      if (result < min) return
+      setCurrentImage(result)
+    }
+  }, 250, { leading: false, trailing: true }), [currentImage, imageList])
+
+  const handleTransform = () => {
+    console.log('paki transform');
+    if (selectTransformRef.current) {
+      const { width } = selectTransformRef.current.getBoundingClientRect()
+      selectOutInitWidth.current = width
     }
   }
 
@@ -339,20 +251,10 @@ const App: React.FC = () => {
       setHasCustomize(true)
     } else {
       setHasCustomize(false)
-      // setCustomizeGenerateFinish(false)
     }
   }, [waterMarkValue])
 
   useEffect(() => {
-    if (!contentSizeType) return
-    setContentSize({
-      width: sizeData[contentSizeType].size[0],
-      height: sizeData[contentSizeType].size[1]
-    })
-  }, [contentSizeType])
-
-  useEffect(() => {
-    console.log('paki file');
     const genetateImages = async () => {
       if (!file) return
       const fileCopy = file.slice(0)
@@ -382,7 +284,6 @@ const App: React.FC = () => {
           await page.render(renderContext).promise;
           canvas.style.width = `${imageWidth}px`
           canvas.style.height = `${imageHeight}px`
-          // const url = canvas.toDataURL("image/png")
           resolve({
             width: imageWidth,
             height: imageHeight,
@@ -426,8 +327,15 @@ const App: React.FC = () => {
 
     //设置背景的缩放倍数
     if (!leftMainRef.current || !pageWidth.current || imageList.length === 0) return
-    const { clientWidth } = leftMainRef.current
-    setWatermarkScale(clientWidth / pageWidth.current)
+    const scale = waterUnitWidth / pageWidth.current
+    setWatermarkSize({
+      width: scale
+    })
+
+    transformComponentRef.current?.resetTransform()
+    transformComponentRef.current?.centerView(0.7)
+
+
   }, [imageList])
 
 
@@ -463,22 +371,13 @@ const App: React.FC = () => {
             intent={(customizeContent !== undefined && customizeContent.length > 20) ? 'danger' : 'normal'}
           >
           </Input.Textarea>
-          {/* <Button
-            onClick={handleGenerateCustomize}
-            intent={customizeGenerateFinish ? 'success' : 'normal'}
-            leftIcon={customizeGenerateFinish ? 'tick-circle' : undefined}
-            theme={customizeGenerateFinish ? 'light' : null}
-            style={{ width: '100%', marginTop: '6px' }}
-            active={customizeGenerateFinish}
-            disabled={customizeContent !== undefined && customizeContent.length > 20}
-          >
-            {customizeGenerateFinish ? '已应用自定义内容' : '完成输入'}
-          </Button> */}
         </div>
       )}
       <Button onClick={generateWatermarkUnit} size="medium" style={{ width: '100%', marginTop: '16px' }}>应用水印内容</Button>
     </div>
   )
+
+  const exportDisabled = !watermarkUnit || !generateWatermarkUnitFinish || !file
   return (
     <div className="app">
       <div className="header">
@@ -487,69 +386,74 @@ const App: React.FC = () => {
       </div>
       <div className="main">
         <div className="left">
-          <div ref={leftMainRef} className={classNames('left_inner', { 'left_inner_active': !!imageList[currentImage] })}>
+          <div className={classNames('left_inner', { 'left_inner_active': !!imageList[currentImage] })}>
             {imageList.length > 0 && (
-              <div className="images" ref={imageListRef}>
-                {imageList.map((item, index) => {
-                  return <div className={classNames('images_item', { 'images_item_active': index === currentImage })} onClick={() => { setCurrentImage(index) }}>
-                    {watermarkUnit && (
-                      <div className="image_select" onClick={(event) => {
-                        event.stopPropagation()
-                        handleChangeSelectedPage(index)
-                      }}>
-                        <Checkbox size="large" checked={selectedPages.includes(index)}></Checkbox>
+              <div style={{ width: slideHidden ? '0px' : '193px', overflowX: 'hidden', transition: 'all .4s ease-in-out' }}>
+                <div className="images" ref={imageListRef}>
+                  {imageList.map((item, index) => {
+                    return <div className={classNames('images_item', { 'images_item_active': index === currentImage })} onClick={() => { setCurrentImage(index) }}>
+                      {watermarkUnit && (
+                        <div className="image_select" onClick={(event) => {
+                          event.stopPropagation()
+                          handleChangeSelectedPage(index)
+                        }}>
+                          <Checkbox size="large" checked={selectedPages.includes(index)}></Checkbox>
+                        </div>
+                      )}
+                      <div className="images_item_inner" style={{ width: '100%', height: `${(160 / item.width) * item.height}px`, }}>
+                        <div style={{ width: 'fit-content', transform: `scale(${160 / (item.width)})`, transformOrigin: 'left top', position: 'relative' }}>
+                          <div className="canvas"></div>
+                        </div>
                       </div>
-                    )}
-                    <div className="images_item_inner" style={{ width: '100%', height: `${(160 / item.width) * item.height}px`, }}>
-                      <div style={{ width: 'fit-content', transform: `scale(${160 / (item.width)})`, transformOrigin: 'left top', position: 'relative' }}>
-                        <div className="canvas"></div>
-                      </div>
+                      <div className="image_num">{index + 1}</div>
                     </div>
-                    <div className="image_num">{index + 1}</div>
-                  </div>
-                })}
+                  })}
+                </div>
               </div>
             )}
-            <div className={classNames('left_main', { 'left_main_images': imageList.length > 0 })}>
-              {(imageList[currentImage] || waterMarkValue.length !== 0) && (
-                <TransformWrapper ref={transformComponentRef} initialScale={0.8} centerOnInit centerZoomedOut minScale={0.2}>
+            <div ref={leftMainRef} className={classNames('left_main', { 'left_main_images': imageList.length > 0 })} onWheel={handleWheel}>
+              {file && (
+                <TransformWrapper onTransformed={handleTransform} ref={transformComponentRef} wheel={{ disabled: true }} centerOnInit centerZoomedOut minScale={0.2}>
                   {({ zoomIn, zoomOut }) => {
                     return <>
                       <TransformComponent wrapperStyle={{ width: '100%', height: '100%', overflow: 'hidden' }}>
                         <div className="selection_outer" ref={selectTransformRef}>
                           <div className="selection" ref={selectionRef}>
-                            {/* {imageList[currentImage] && imageList[currentImage].canvas} */}
                             {imageList[currentImage] && <img style={{ width: '100%' }} alt='' src={imageList[currentImage].canvas.toDataURL()}></img>}
                           </div>
-                          {(!file && waterMarkValue.length !== 0) && (
-                            <div style={{ border: '1px solid #C7C7C7', width: `${contentSize.width}px`, height: `${contentSize.height}px` }}></div>
+                          {selectedPages.includes(currentImage) && (
+                            <div ref={waterCoverRef} className='watermark_cover'
+                              style={{
+                                backgroundImage: `url(${watermarkUnit?.base64Data})`,
+                                backgroundRepeat: 'repeat',
+                                backgroundPosition: '0px 0px',
+                                backgroundSize: `${watermarkSize.width * 100}% auto`,
+                                mixBlendMode: 'exclusion'
+                              }}>
+                            </div>
                           )}
-                          <div className='watermark_cover'
-                            style={{
-                              backgroundImage: `url(${watermarkUnit?.base64Data})`,
-                              backgroundRepeat: 'repeat',
-                              backgroundPosition: file ? '0px 0px' : `-${offsetX}px 0px`,
-                              backgroundSize: `${waterUnitWidth * watermarkScale}px ${(watermarkUnit?.nums || waterMarkValue.length) * 168 * watermarkScale}px`,
-                              mixBlendMode: 'exclusion'
-                            }}>
-                          </div>
                         </div>
                       </TransformComponent>
                       <div className="controls">
                         {imageList.length > 1 && <Pagination size="medium" total={imageList.length} pageSize={1} showButtonJumper showInputJumper current={currentImage + 1} onChange={(value) => { setCurrentImage(value - 1) }}></Pagination>}
                       </div>
+                      <Button size="medium" leftIcon="material-layer" onClick={() => { setSlideHidden(!slideHidden) }} className='hidden_button'></Button>
                       <Button.Group size="medium" className="scale_buttons">
-                        <Button leftIcon="minus" onClick={() => { zoomOut(0.1) }}></Button>
-                        <Button leftIcon="add" onClick={() => { zoomIn(0.1) }}></Button>
+                        <Button leftIcon="minus" onClick={() => {
+                          zoomOut(0.1);
+                        }}></Button>
+                        <Button leftIcon="add" onClick={() => {
+                          zoomIn(0.1);
+                        }}></Button>
                       </Button.Group>
                     </>
                   }}
                 </TransformWrapper>
               )}
-              {(!imageList[currentImage] && waterMarkValue.length === 0) && (
+              {!file && (
                 <div className="empty">
-                  <div>选择水印内容，可预览水印效果</div>
-                  <div>上传 pdf，导出带水印的文件</div>
+                  <input ref={uploadInputRef} className="button_input" accept=".pdf" type="file" onChange={handleFileChange} />
+                  <Button leftIcon="upload" intent="primary" onClick={handleUpload}>上传 PDF 文件</Button>
                 </div>
               )}
             </div>
@@ -581,9 +485,9 @@ const App: React.FC = () => {
                 <div>PDF</div>
               </div>
               <div className="upload_button">
-                <input ref={uploadInputRef} className="button_input" accept=".pdf" type="file" onChange={handleFileChange} />
-                {!fileName && <Button loading={uploading} size="medium" onClick={handleUpload} style={{ width: '100%', height: '42px' }} leftIcon="upload">上传文件</Button>}
-                {fileName && (
+                {file && <input ref={uploadInputRef} className="button_input" accept=".pdf" type="file" onChange={handleFileChange} />}
+                {!file && <div className="upload_button_empty">请先上传 PDF 文件</div>}
+                {file && (
                   <div className="file_name_button">
                     <div style={{ display: 'flex', alignItems: 'center', minWidth: 0 }}>
                       <div className="file_name" style={{ overflow: 'hidden', textOverflow: 'ellipsis', flex: 1, textAlign: 'left' }}>{fileName}</div>
@@ -604,36 +508,13 @@ const App: React.FC = () => {
                   <div>水印内容</div>
                   <div className="watermark_number" style={{ marginLeft: '8px' }}>{waterMarkValue.length}/2</div>
                 </div>
-                {/* {waterMarkValue.length > 0 && <Button onClick={generateWatermarkUnit}>应用</Button>} */}
               </div>
               <div className="right_checkbox">{checkboxContent}</div>
-              <div className="divider"></div>
-              <div>
-                <div className="right_title">
-                  <div>导出空白水印（@2x）</div>
-                </div>
-                <Radio.Group disabled={!!file} value={contentSizeType} style={{ display: 'block' }} onChange={(value) => {
-                  console.log(value)
-                  setContentSizeType(value)
-                }}>
-                  {Object.entries(sizeData).map((entry) => {
-                    return <Radio style={{ display: 'block', marginLeft: '0px' }} key={entry[0]} value={entry[0]}>{entry[1].desc}</Radio>
-                  })}
-                </Radio.Group>
-                {contentSizeType === 'size3' && (
-                  <div className="customize_size">
-                    <Input onChange={(event, value) => { handleChangeContentSize('width', value) }} type="number" value={`${contentSize.width}`} style={{ width: '72px' }}></Input>
-                    <div style={{ margin: '0 8px' }}>×</div>
-                    <Input onChange={(eent, value) => { handleChangeContentSize('height', value) }} type="number" value={`${contentSize.height}`} style={{ width: '72px' }}></Input>
-                    <div style={{ marginLeft: '8px' }}>px</div>
-                  </div>
-                )}
-              </div>
             </div>
           </div>
           <div className="right_bottom">
-            {file && <Button intent="primary" onClick={handleDownload} loading={generating} disabled={!watermarkUnit || !generateWatermarkUnitFinish} style={{ width: '100%' }}>导出文件</Button>}
-            {!file && <Button intent="primary" onClick={handleGenerateImage} loading={generating} disabled={!watermarkUnit || !generateWatermarkUnitFinish} style={{ width: '100%' }} >导出空白水印</Button>}
+            {exportDisabled && <Popover popup="导出水印前，请先应用水印内容" placement="top"><div><Button intent="primary" onClick={handleDownload} loading={generating} disabled style={{ width: '100%' }}>导出文件</Button></div></Popover>}
+            {!exportDisabled && <Button intent="primary" onClick={handleDownload} loading={generating} style={{ width: '100%' }}>导出文件</Button>}
           </div>
         </div>
       </div>

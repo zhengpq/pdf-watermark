@@ -162,6 +162,21 @@ img {
   position: relative;
 }
 
+
+.watermark_cover_image {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -100;
+}
+
+.watermark_cover_image img {
+  width: 100%;
+  height: auto;
+}
+
 .watermark_cover {
   position: absolute;
   top: 0;
@@ -186,6 +201,13 @@ img {
 
 .controls .adui-button-leftIcon {
   transform: rotate(90deg);
+}
+
+.hidden_button {
+  position: absolute;
+  left: 16px;
+  bottom: 16px;
+  z-index: 300;
 }
 
 
@@ -234,7 +256,15 @@ img {
 }
 
 .upload_button {
-  position: relative;
+  position: relative;  
+}
+
+.upload_button_empty {
+  display: flex;
+  align-items: center;
+  height: 42px;
+  font-size: 14px;
+  color: var(--transparent-gray-700);
 }
 
 .divider {
@@ -251,6 +281,7 @@ img {
   align-items: center;
   font-size: 14px;
   color: #000;
+  vertical-align: top;
 }
 
 .checkbox_content svg {
@@ -312,6 +343,7 @@ img {
 }
 
 .empty {
+  position: relative;
   width: 100%;
   height: 100%;
   display: flex;
