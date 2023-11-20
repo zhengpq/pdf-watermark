@@ -111,11 +111,6 @@ const App: React.FC = () => {
           bufferData: reader.result,
           nums: waterMarkValue.length
         })
-        if (!waterCoverRef.current || !waterCoverImageRef.current) return
-        const waterCoverCanvas = await getDomCanvas(waterCoverRef.current, devicePixelRatio)
-        const image = await base64ToImage(waterCoverCanvas.toDataURL('image/png'))
-        waterCoverImageRef.current.innerHTML = ''
-        waterCoverImageRef.current.appendChild(image)
         Message.success({
           content: "已应用水印内容",
         })
