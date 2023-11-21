@@ -45,20 +45,6 @@ const getDomCanvas = async <T extends HTMLElement,>(dom: T, devicePixelRatio: nu
   return canvas
 }
 
-const base64ToImage = (base64: string) => {
-  return new Promise((resolve: (value: HTMLImageElement) => void, reject) => {
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    img.src = base64;
-    img.onload = () => {
-      resolve(img)
-    }
-    img.onerror = (event) => {
-      reject(event)
-    }
-  }).then((value: HTMLImageElement) => { return value }).catch((event) => { throw event })
-}
-
 
 const App: React.FC = () => {
   const [file, setFile] = useState<ArrayBuffer | string>('')
@@ -74,7 +60,7 @@ const App: React.FC = () => {
   const [customizeContent, setCustomizeContent] = useState<string | undefined>('')
   const [generateWatermarkUnitFinish, setGenerateWatermarkUnitFinish] = useState(false)
   const [uploading, setUploading] = useState(false)
-  const [watermarkSize, setWatermarkSize] = useState({ width: 0})
+  const [watermarkSize, setWatermarkSize] = useState({ width: 0 })
   const watermarkUnitRef = useRef<HTMLDivElement>(null)
   const transformComponentRef = useRef<ReactZoomPanPinchRef | null>(null)
   const selectTransformRef = useRef<HTMLDivElement>(null)
@@ -84,9 +70,7 @@ const App: React.FC = () => {
   const selectionRef = useRef<HTMLDivElement>(null)
   const leftMainRef = useRef<HTMLDivElement>(null)
   const waterCoverRef = useRef<HTMLDivElement>(null)
-  const waterCoverImageRef = useRef<HTMLDivElement>(null)
   const pageWidth = useRef(0)
-  const selectOutInitWidth = useRef(0)
   const devicePixelRatio = window.devicePixelRatio
   const waterUnitWidth = 222
   const waterUnitHeight = 168
@@ -232,13 +216,22 @@ const App: React.FC = () => {
     }
   }, 250, { leading: false, trailing: true }), [currentImage, imageList])
 
-  const handleTransform = () => {
-    console.log('paki transform');
-    if (selectTransformRef.current) {
-      const { width } = selectTransformRef.current.getBoundingClientRect()
-      selectOutInitWidth.current = width
+  const handleTurnPage = useCallback((event: KeyboardEvent) => {
+    if (imageList.length === 0) return
+    const max = imageList.length - 1
+    const min = 0
+    const { key } = event
+    if (key === 'ArrowDown') {
+      const result = currentImage + 1
+      if (result > max) return
+      setCurrentImage(result)
     }
-  }
+    if (key === 'ArrowUp') {
+      const result = currentImage - 1
+      if (result < min) return
+      setCurrentImage(result)
+    }
+  }, [imageList, currentImage])
 
 
   useEffect(() => {
@@ -333,6 +326,13 @@ const App: React.FC = () => {
 
   }, [imageList])
 
+  useEffect(() => {
+    // 监听键盘事件
+    window.addEventListener('keydown', handleTurnPage)
+    return () => {
+      window.removeEventListener('keydown', handleTurnPage)
+    }
+  }, [imageList, handleTurnPage])
 
   useEffect(() => {
     if (!imageListRef.current) return
@@ -361,6 +361,7 @@ const App: React.FC = () => {
             onChange={(e, value) => {
               setCustomizeContent(value)
             }}
+            onKeyDown={(event) => { event.stopPropagation() }}
             limit={20}
             value={customizeContent}
             intent={(customizeContent !== undefined && customizeContent.length > 20) ? 'danger' : 'normal'}
@@ -408,7 +409,7 @@ const App: React.FC = () => {
             )}
             <div ref={leftMainRef} className={classNames('left_main', { 'left_main_images': imageList.length > 0 })} onWheel={handleWheel}>
               {file && (
-                <TransformWrapper onTransformed={handleTransform} ref={transformComponentRef} wheel={{ disabled: true }} centerOnInit centerZoomedOut minScale={0.2}>
+                <TransformWrapper ref={transformComponentRef} wheel={{ disabled: true }} centerOnInit centerZoomedOut minScale={0.2}>
                   {({ zoomIn, zoomOut }) => {
                     return <>
                       <TransformComponent wrapperStyle={{ width: '100%', height: '100%', overflow: 'hidden' }}>
