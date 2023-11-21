@@ -112,7 +112,7 @@ const App: React.FC = () => {
           nums: waterMarkValue.length
         })
         Message.success({
-          content: "已应用水印内容",
+          content: "已应用水印内容"
         })
         setGenerateWatermarkUnitFinish(true)
       }
@@ -383,7 +383,7 @@ const App: React.FC = () => {
         <div className="left">
           <div className={classNames('left_inner', { 'left_inner_active': !!imageList[currentImage] })}>
             {imageList.length > 0 && (
-              <div style={{ width: slideHidden ? '0px' : '193px', overflowX: 'hidden', transition: 'all .4s ease-in-out' }}>
+              <div style={{ width: slideHidden ? '0px' : '193px', overflowX: 'hidden' }}>
                 <div className="images" ref={imageListRef}>
                   {imageList.map((item, index) => {
                     return <div className={classNames('images_item', { 'images_item_active': index === currentImage })} onClick={() => { setCurrentImage(index) }}>
@@ -448,7 +448,7 @@ const App: React.FC = () => {
               {!file && (
                 <div className="empty">
                   <input ref={uploadInputRef} className="button_input" accept=".pdf" type="file" onChange={handleFileChange} />
-                  <Button leftIcon="upload" intent="primary" onClick={handleUpload}>上传 PDF 文件</Button>
+                  <Button leftIcon="upload" size="large" intent="primary" onClick={handleUpload}>上传 PDF 文件</Button>
                 </div>
               )}
             </div>
