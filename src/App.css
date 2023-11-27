@@ -77,6 +77,14 @@ img {
   border-right: 1px solid var(--30010, rgba(0, 0, 0, 0.10));
 }
 
+.images_loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: #FAFAFA;
+}
+
 .images_item {
   position: relative;
   margin-bottom: 12px;
@@ -202,7 +210,7 @@ img {
 
 .controls .adui-button-leftIcon {
   transform: rotate(90deg);
-}
+}        
 
 .hidden_button {
   position: absolute;

@@ -4,13 +4,14 @@ import html2canvas from 'html2canvas';
 import classNames from 'classnames';
 import { BlendMode, PDFDocument } from 'pdf-lib'
 import imageCompression from 'browser-image-compression';
-import { Button, Form, Input, Message, Checkbox, Radio, NumericInput, Alert, Pagination, Icon, Popover } from 'adui'
-import { TransformComponent, TransformWrapper, ReactZoomPanPinchRef, useControls } from 'react-zoom-pan-pinch'
-import { debounce, throttle } from 'lodash'
+import { Button, Form, Input, Message, Checkbox, Pagination, Icon, Popover, Spinner } from 'adui'
+import { TransformComponent, TransformWrapper, ReactZoomPanPinchRef } from 'react-zoom-pan-pinch'
+import { throttle } from 'lodash'
 import axios from 'axios'
 import { Buffer } from 'buffer';
 import './App.css';
 import { waterMarkData, sizeData, ISizeData } from './data'
+import { debug } from 'console';
 const work = require('pdfjs-dist/build/pdf.worker')
 // import './pdfjsWorkerSetup.js';
 pdfjsLib.GlobalWorkerOptions.workerSrc = work
@@ -26,7 +27,12 @@ interface WatermarkUnitData {
 interface ImageData {
   width: number
   height: number
-  canvas: HTMLCanvasElement
+  data: string
+}
+
+interface FileData {
+  name: string
+  data: ArrayBuffer | string
 }
 
 const getDomCanvas = async <T extends HTMLElement,>(dom: T, devicePixelRatio: number) => {
@@ -44,6 +50,14 @@ const getDomCanvas = async <T extends HTMLElement,>(dom: T, devicePixelRatio: nu
   });
   return canvas
 }
+function chunkArray<T>(array: Array<T>, step: number) {
+  const result = [];
+  for (let i = 0; i < array.length; i += step) {
+    const chunk = array.slice(i, i + step);
+    result.push(chunk);
+  }
+  return result;
+}
 
 
 const App: React.FC = () => {
@@ -52,6 +66,7 @@ const App: React.FC = () => {
   const [watermarkUnit, setWatermarkUnit] = useState<WatermarkUnitData | null>(null)
   const [imageList, setImageList] = useState<ImageData[]>([])
   const [currentImage, setCurrentImage] = useState(0)
+  const [currentPagesChunk, setCurrentPagesChunk] = useState(0)
   const [waterMarkValue, setWaterMarkValue] = useState<Array<string>>([])
   const [selectedPages, setSelectedPages] = useState<number[]>([])
   const [slideHidden, setSlideHidden] = useState(false)
@@ -66,6 +81,9 @@ const App: React.FC = () => {
   const selectTransformRef = useRef<HTMLDivElement>(null)
   const uploadInputRef = useRef<HTMLInputElement>(null)
   const imageListRef = useRef<HTMLDivElement>(null)
+  const imagesListDataRef = useRef<ImageData[]>([])
+  // const currentPagesChunk = useRef<number | null>(null)
+  const selectedPagesDataRef = useRef<number[]>([])
   const messageRef = useRef<any>(null)
   const selectionRef = useRef<HTMLDivElement>(null)
   const leftMainRef = useRef<HTMLDivElement>(null)
@@ -122,18 +140,23 @@ const App: React.FC = () => {
     const file = event.target.files?.[0];
     if (!file) return
     setUploading(true)
+    setCurrentPagesChunk(0)
+    imagesListDataRef.current = []
+    selectedPagesDataRef.current = []
     messageRef.current = Message.normal({
       content: "文件解析中，请耐心等待",
       duration: 0,
     })
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      if (event.target?.result) {
-        setFile(event.target?.result)
-        setFileName(file.name)
-      }
-    };
-    reader.readAsArrayBuffer(file);
+    setTimeout(() => {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        if (event.target?.result) {
+          setFile(event.target?.result)
+          setFileName(file.name)
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    }, 100)
   }
   const handleDownload = async () => {
     const pdfDoc = await PDFDocument.load(file);
@@ -156,7 +179,7 @@ const App: React.FC = () => {
             page.drawImage(watermarkImage, {
               blendMode: BlendMode.Exclusion,
               x: col * watermarkWidth,
-              y: row * watermarkHeight,
+              y: height - (watermarkHeight * (row + 1)),
               width: watermarkWidth,
               height: watermarkHeight,
             });
@@ -184,6 +207,7 @@ const App: React.FC = () => {
     } else {
       selectedPages.splice(index, 1)
     }
+    selectedPagesDataRef.current = [...selectedPages]
     setSelectedPages([...selectedPages])
   }
 
@@ -193,6 +217,7 @@ const App: React.FC = () => {
     setCurrentImage(0)
     setFileName('')
     setWatermarkSize({ width: 0 })
+    setCurrentPagesChunk(0)
     transformComponentRef.current?.resetTransform()
     transformComponentRef.current?.centerView(0.8)
     if (uploadInputRef.current) {
@@ -248,83 +273,77 @@ const App: React.FC = () => {
       const fileCopy = file.slice(0)
       const pdfData = new Uint8Array((fileCopy as ArrayBufferLike));
       const pdf = await pdfjsLib.getDocument({ data: pdfData }).promise;
-      const promises = Array.from(Array(pdf.numPages), (item, index) => index).map((item, itemIndex) => {
-        return new Promise<ImageData>(async (resolve, reject) => {
-          const page = await pdf.getPage(item + 1);
-          const viewport = page.getViewport({ scale: 1 });
-          const imageWidth = viewport.width
-          const imageHeight = viewport.height
-          if (itemIndex === 0) {
-            pageWidth.current = imageWidth
-          }
-          const viewportScale = page.getViewport({ scale: devicePixelRatio })
-          const canvas = document.createElement('canvas');
-          canvas.className = `canvas_${itemIndex}`
-          canvas.width = imageWidth * devicePixelRatio
-          canvas.height = imageHeight * devicePixelRatio
+      const numPages = pdf.numPages
+      const pagesArray = Array.from(Array(numPages), (item, index) => index)
+      const step = 5
+      const pagesChunks = chunkArray<number>(pagesArray, step)
+      for (let index = 0; index < pagesChunks.length; index++) {
+        const pages = pagesChunks[index]
+        const promises = pages.map((pageItem) => {
+          return new Promise<ImageData>(async (resolve, reject) => {
+            const page = await pdf.getPage(pageItem + 1);
+            const viewport = page.getViewport({ scale: 1 });
+            const imageWidth = viewport.width
+            const imageHeight = viewport.height
+            if (pageItem === 0) {
+              pageWidth.current = imageWidth
+            }
+            const viewportScale = page.getViewport({ scale: devicePixelRatio })
+            const canvas = document.createElement('canvas');
+            canvas.className = `canvas_${pageItem}`
+            canvas.width = imageWidth * devicePixelRatio
+            canvas.height = imageHeight * devicePixelRatio
 
-          const ctx = canvas.getContext('2d');
-          if (!ctx) return
-          const renderContext = {
-            canvasContext: ctx,
-            viewport: viewportScale,
-          };
-          await page.render(renderContext).promise;
-          canvas.style.width = `${imageWidth}px`
-          canvas.style.height = `${imageHeight}px`
-          resolve({
-            width: imageWidth,
-            height: imageHeight,
-            canvas,
+            const ctx = canvas.getContext('2d');
+            if (!ctx) return
+            const renderContext = {
+              canvasContext: ctx,
+              viewport: viewportScale,
+            };
+            await page.render(renderContext).promise;
+            canvas.style.width = `${imageWidth}px`
+            canvas.style.height = `${imageHeight}px`
+            const imageData = canvas.toDataURL()
+            resolve({
+              width: imageWidth,
+              height: imageHeight,
+              data: imageData,
+            })
           })
         })
-      })
-      Promise.all(promises).then((value) => {
-        if (messageRef.current) {
-          messageRef.current.destroy()
-        }
-        setImageList(value)
-        setUploading(false)
-      }).catch((error) => {
-        console.log(error)
-        setUploading(false)
-      })
+        await Promise.all(promises).then((value) => {
+          if (messageRef.current) {
+            messageRef.current.destroy()
+          }
+          setCurrentPagesChunk(index)
+          imagesListDataRef.current = [...imagesListDataRef.current, ...value]
+          selectedPagesDataRef.current = [...selectedPagesDataRef.current, ...pages]
+          setImageList(imagesListDataRef.current)
+          setSelectedPages(selectedPagesDataRef.current)
+        }).catch((error) => {
+          setUploading(false)
+        })
+      }
+      setUploading(false)
     }
-    const timer = setTimeout(() => {
-      genetateImages()
-    }, 300)
-
-    return () => {
-      clearTimeout(timer)
-    }
+    genetateImages()
 
   }, [file, devicePixelRatio])
 
   useEffect(() => {
-    const pages = Array.from(Array(imageList.length), (item, index) => index)
-    setCurrentImage(0)
-    setSelectedPages(pages)
+    if (currentPagesChunk === 0) {
+      setCurrentImage(0)
+      //设置背景的缩放倍数
+      if (!leftMainRef.current || !pageWidth.current) return
+      const scale = waterUnitWidth / pageWidth.current
+      setWatermarkSize({
+        width: scale
+      })
 
-    // 页面插入 canvas 节点
-    const imageDoms = document.getElementsByClassName('images_item')
-    Array.from(imageDoms).forEach((item, index) => {
-      const canvasDom = item.getElementsByClassName('canvas')[0]
-      canvasDom.innerHTML = ''
-      canvasDom.appendChild(imageList[index].canvas)
-    })
-
-    //设置背景的缩放倍数
-    if (!leftMainRef.current || !pageWidth.current || imageList.length === 0) return
-    const scale = waterUnitWidth / pageWidth.current
-    setWatermarkSize({
-      width: scale
-    })
-
-    transformComponentRef.current?.resetTransform()
-    transformComponentRef.current?.centerView(0.7)
-
-
-  }, [imageList])
+      transformComponentRef.current?.resetTransform()
+      transformComponentRef.current?.centerView(0.7)
+    }
+  }, [imageList, currentPagesChunk])
 
   useEffect(() => {
     // 监听键盘事件
@@ -396,14 +415,17 @@ const App: React.FC = () => {
                           <Checkbox size="large" checked={selectedPages.includes(index)}></Checkbox>
                         </div>
                       )}
-                      <div className="images_item_inner" style={{ width: '100%', height: `${(160 / item.width) * item.height}px`, }}>
-                        <div style={{ width: 'fit-content', transform: `scale(${160 / (item.width)})`, transformOrigin: 'left top', position: 'relative' }}>
-                          <div className="canvas"></div>
-                        </div>
+                      <div className="images_item_inner" style={{ width: '100%' }}>
+                        <img src={item.data} alt="" style={{ width: '100%', height: 'auto' }} />
                       </div>
                       <div className="image_num">{index + 1}</div>
                     </div>
                   })}
+                  {uploading && (
+                    <div className="images_loading">
+                      <Spinner></Spinner>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -415,7 +437,7 @@ const App: React.FC = () => {
                       <TransformComponent wrapperStyle={{ width: '100%', height: '100%', overflow: 'hidden' }}>
                         <div className="selection_outer" ref={selectTransformRef}>
                           <div className="selection" ref={selectionRef}>
-                            {imageList[currentImage] && <img style={{ width: '100%' }} alt='' src={imageList[currentImage].canvas.toDataURL()}></img>}
+                            {imageList[currentImage] && <img style={{ width: '100%' }} alt='' src={imageList[currentImage].data}></img>}
                           </div>
                           {selectedPages.includes(currentImage) && (
                             <div ref={waterCoverRef} className='watermark_cover'
