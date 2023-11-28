@@ -92,6 +92,7 @@ const App: React.FC = () => {
   const devicePixelRatio = window.devicePixelRatio
   const waterUnitWidth = 222
   const waterUnitHeight = 168
+  const scalePoint = 1600
   const offsetX = 138;
 
   const generateWatermarkUnit = useCallback(async () => {
@@ -288,11 +289,12 @@ const App: React.FC = () => {
             if (pageItem === 0) {
               pageWidth.current = imageWidth
             }
-            const viewportScale = page.getViewport({ scale: devicePixelRatio })
+            const canvasScale = imageWidth < scalePoint ? devicePixelRatio : 1
+            const viewportScale = page.getViewport({ scale: canvasScale })
             const canvas = document.createElement('canvas');
             canvas.className = `canvas_${pageItem}`
-            canvas.width = imageWidth * devicePixelRatio
-            canvas.height = imageHeight * devicePixelRatio
+            canvas.width = imageWidth * canvasScale
+            canvas.height = imageHeight * canvasScale
 
             const ctx = canvas.getContext('2d');
             if (!ctx) return
