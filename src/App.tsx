@@ -63,6 +63,11 @@ const App: React.FC = () => {
   const devicePixelRatio = window.devicePixelRatio
   const scalePoint = 1600
 
+  // 防止输入框触发全局键盘事件
+  const handlePreventKeyEvent: React.KeyboardEventHandler<HTMLInputElement> = useCallback((event) => {
+    event.stopPropagation()
+  }, [])
+
   const generateWatermarkUnit = useCallback(async () => {
     if (!watermarkUnitRef.current) return
     // 获取当前水印单元画布
@@ -303,9 +308,13 @@ const App: React.FC = () => {
       setWatermarkPreviewSize({
         width: scale
       })
-
-      transformComponentRef.current?.resetTransform()
-      transformComponentRef.current?.centerView(0.7)
+      const timer = setTimeout(() => {
+        transformComponentRef.current?.resetTransform()
+        transformComponentRef.current?.centerView(0.7)
+      }, 100)
+      return () => {
+        clearTimeout(timer)
+      }
     }
   }, [imageList, currentPagesChunk])
 
@@ -492,7 +501,7 @@ const App: React.FC = () => {
                 <div className="right_section_body">
                   {waterMarkValue.map((item, index) => {
                     return <div className="text_item">
-                      <Input style={{ flex: '1' }} placeholder="请输入水印文案" value={item} onChange={(event) => { handleChangeText(index, event) }}></Input>
+                      <Input onKeyDown={handlePreventKeyEvent} style={{ flex: '1' }} placeholder="请输入水印文案" value={item} onChange={(event) => { handleChangeText(index, event) }}></Input>
                       <Button type="text" style={{ color: 'var(--transparent-gray-700)', marginLeft: '4px', flex: 'none' }} onClick={() => { handleDeleteText(index) }} icon={<DeleteFilled></DeleteFilled>}></Button>
                     </div>
                   })}
@@ -508,11 +517,11 @@ const App: React.FC = () => {
                     <div className="rule_body">
                       <div className="rule_size">
                         <div className="rule_size_label">宽度</div>
-                        <InputNumber onChange={(value) => { setWatermarkSize({ width: value || 0, height: watermarkSize.height }) }} value={watermarkSize.width} size="small"></InputNumber>
+                        <InputNumber controls={false} onKeyDown={handlePreventKeyEvent} onChange={(value) => { setWatermarkSize({ width: value || 0, height: watermarkSize.height }) }} value={watermarkSize.width} size="small"></InputNumber>
                       </div>
                       <div className="rule_size">
                         <div className="rule_size_label">高度</div>
-                        <InputNumber onChange={(value) => { setWatermarkSize({ width: watermarkSize.width, height: value || 0 }) }} value={watermarkSize.height} size="small"></InputNumber>
+                        <InputNumber controls={false} onKeyDown={handlePreventKeyEvent} onChange={(value) => { setWatermarkSize({ width: watermarkSize.width, height: value || 0 }) }} value={watermarkSize.height} size="small"></InputNumber>
                       </div>
                     </div>
                   </div>
@@ -522,15 +531,15 @@ const App: React.FC = () => {
                   </div>
                   <div className="rule_item">
                     <div className="rule_label">文字大小</div>
-                    <InputNumber size="small" min={12} value={textSize} onChange={(value) => { if (value !== null) { setTextSize(value) } }}></InputNumber>
+                    <InputNumber controls={false} onKeyDown={handlePreventKeyEvent} size="small" min={12} value={textSize} onChange={(value) => { if (value !== null) { setTextSize(value) } }}></InputNumber>
                   </div>
                   <div className="rule_item">
                     <div className="rule_label">旋转角度</div>
-                    <InputNumber size="small" min={0} max={360} value={rotate} onChange={(value) => { if (value !== null) { setRotate(value) } }}></InputNumber>
+                    <InputNumber controls={false} onKeyDown={handlePreventKeyEvent} size="small" min={0} max={360} value={rotate} onChange={(value) => { if (value !== null) { setRotate(value) } }}></InputNumber>
                   </div>
                   <div className="rule_item">
                     <div className="rule_label">水印间距</div>
-                    <InputNumber size="small" min={0} value={textPadding} onChange={(value) => { if (value !== null) { setTextPadding(value) } }}></InputNumber>
+                    <InputNumber controls={false} onKeyDown={handlePreventKeyEvent} size="small" min={0} value={textPadding} onChange={(value) => { if (value !== null) { setTextPadding(value) } }}></InputNumber>
                   </div>
                 </div>
               </div>
