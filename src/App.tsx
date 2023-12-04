@@ -461,133 +461,131 @@ const App: React.FC = () => {
           </div>
         </div>
         <div className="right">
-          <div className="right_top">
-            <div className="right_head">
-              <div className="right_title">
-                <div>PDF</div>
-              </div>
-              <div className="upload_button">
-                {file && <input ref={uploadInputRef} className="button_input" accept=".pdf" type="file" onChange={handleFileChange} />}
-                {!file && <div className="upload_button_empty">请先上传 PDF 文件</div>}
-                {file && (
-                  <div className="file_name_button">
-                    <div style={{ display: 'flex', alignItems: 'center', minWidth: 0 }}>
-                      <div className="file_name" style={{ overflow: 'hidden', textOverflow: 'ellipsis', flex: 1, textAlign: 'left' }}>{fileName}</div>
-                      <div className="file_name_operator">
-                        <Button onClick={handleUpload} style={{ color: 'var(--transparent-gray-800)' }} icon={<RedoOutlined></RedoOutlined>} size="small" type="text"></Button>
-                        <div style={{ width: '1px', margin: '0 6px', height: '16px', backgroundColor: 'var(--transparent-gray-300)', flex: 'none' }}></div>
-                        <Button onClick={handleClearFile} style={{ color: 'var(--transparent-gray-800)' }} icon={<DeleteFilled></DeleteFilled>} size="small" type="text"></Button>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
+          <div className="right_head">
+            <div className="right_title">
+              <div>PDF</div>
             </div>
-            <div className="divider"></div>
-            <div>
-              <div className="right_title">
-                水印内容
-              </div>
-              <div className="right_section">
-                <div className="right_section_title">
-                  <div>文字水印</div>
-                  <Button size="small" type="text" onClick={handleAddText} icon={<PlusOutlined></PlusOutlined>}></Button>
-                </div>
-                <div className="right_section_body text_body">
-                  {waterMarkValue.map((item, index) => {
-                    return <div className="text_item">
-                      <Input size="small" onKeyDown={handlePreventKeyEvent} style={{ flex: '1' }} placeholder="请输入水印文案" value={item} onChange={(event) => { handleChangeText(index, event) }}></Input>
-                      <Button size="small" type="text" style={{ color: 'var(--transparent-gray-700)', marginLeft: '4px', flex: 'none' }} onClick={() => { handleDeleteText(index) }} icon={<DeleteFilled></DeleteFilled>}></Button>
-                    </div>
-                  })}
-                </div>
-              </div>
-              <div className="right_section">
-                <div className="right_section_title">
-                  <div>水印配置</div>
-                </div>
-                <div className="right_section_body">
-                  <div className="rule_item">
-                    <div className="rule_label">水印大小</div>
-                    <div className="rule_body">
-                      <div className="rule_size">
-                        <div className="rule_size_label">宽度</div>
-                        <InputNumber controls={false} onKeyDown={handlePreventKeyEvent} onChange={(value) => { setWatermarkSize({ width: value || 0, height: watermarkSize.height }) }} value={watermarkSize.width} size="small"></InputNumber>
-                      </div>
-                      <div className="rule_size">
-                        <div className="rule_size_label">高度</div>
-                        <InputNumber controls={false} onKeyDown={handlePreventKeyEvent} onChange={(value) => { setWatermarkSize({ width: watermarkSize.width, height: value || 0 }) }} value={watermarkSize.height} size="small"></InputNumber>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="rule_item">
-                    <div className="rule_label">文字颜色</div>
-                    <ColorPicker size="small" defaultValue={textColor} onChange={(value, hex) => { setTextColor(hex) }}></ColorPicker>
-                  </div>
-                  <div className="rule_item">
-                    <div className="rule_label">文字大小</div>
-                    <InputNumber controls={false} onKeyDown={handlePreventKeyEvent} size="small" min={12} value={textSize} onChange={(value) => { if (value !== null) { setTextSize(value) } }}></InputNumber>
-                  </div>
-                  <div className="rule_item">
-                    <div className="rule_label">旋转角度</div>
-                    <InputNumber controls={false} onKeyDown={handlePreventKeyEvent} size="small" min={0} max={360} value={rotate} onChange={(value) => { if (value !== null) { setRotate(value) } }}></InputNumber>
-                  </div>
-                  <div className="rule_item">
-                    <div className="rule_label">水印间距</div>
-                    <InputNumber controls={false} onKeyDown={handlePreventKeyEvent} size="small" min={0} value={textPadding} onChange={(value) => { if (value !== null) { setTextPadding(value) } }}></InputNumber>
-                  </div>
-                </div>
-              </div>
-              <div className="right_section">
-                <div className="right_section_title">
-                  <div>水印单元预览</div>
-                </div>
-                <div className="right_section_body">
-                  <div className="watermark_unit_preview">
-                    <div style={{ transform: `scale(${previewScale})` }}>
-                      <div
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          flexDirection: 'column',
-                          width: `${watermarkSize.width}px`,
-                          height: `${watermarkSize.height}px`,
-                          padding: '12px',
-                          transform: `rotate(${-rotate}deg)`,
-                          transformOrigin: 'center',
-                        }}
-                      >
-                        {
-                          waterMarkValue.map((item, index) => {
-                            return (
-                              <div
-                                className='watermark_item'
-                                style={{
-                                  fontSize: `${textSize}px`,
-                                  color: `${textColor}`,
-                                  fontWeight: '400',
-                                  marginBottom: `${index === waterMarkValue.length - 1 ? 0 : textPadding}px`,
-                                }}
-                              >
-                                {item}
-                              </div>
-                            )
-                          })
-                        }
-                      </div>
+            <div className="upload_button">
+              {file && <input ref={uploadInputRef} className="button_input" accept=".pdf" type="file" onChange={handleFileChange} />}
+              {!file && <div className="upload_button_empty">请先上传 PDF 文件</div>}
+              {file && (
+                <div className="file_name_button">
+                  <div style={{ display: 'flex', alignItems: 'center', minWidth: 0 }}>
+                    <div className="file_name" style={{ overflow: 'hidden', textOverflow: 'ellipsis', flex: 1, textAlign: 'left' }}>{fileName}</div>
+                    <div className="file_name_operator">
+                      <Button onClick={handleUpload} style={{ color: 'var(--transparent-gray-800)' }} icon={<RedoOutlined></RedoOutlined>} size="small" type="text"></Button>
+                      <div style={{ width: '1px', margin: '0 6px', height: '16px', backgroundColor: 'var(--transparent-gray-300)', flex: 'none' }}></div>
+                      <Button onClick={handleClearFile} style={{ color: 'var(--transparent-gray-800)' }} icon={<DeleteFilled></DeleteFilled>} size="small" type="text"></Button>
                     </div>
                   </div>
                 </div>
-              </div>
-              {isWaterMarkDisaled ? (
-                <Popover content="请先检查水印内容是否有填写">
-                  <Button type="default" disabled style={{ width: '100%' }}>应用水印内容</Button>
-                </Popover>
-              ) : (
-                <Button type="default" onClick={generateWatermarkUnit} style={{ width: '100%' }}>应用水印内容</Button>
               )}
             </div>
+          </div>
+          <div className="divider"></div>
+          <div className="right_main">
+            <div className="right_title">
+              水印内容
+            </div>
+            <div className="right_section">
+              <div className="right_section_title">
+                <div>文字水印</div>
+                <Button size="small" type="text" onClick={handleAddText} icon={<PlusOutlined></PlusOutlined>}></Button>
+              </div>
+              <div className="right_section_body text_body">
+                {waterMarkValue.map((item, index) => {
+                  return <div className="text_item">
+                    <Input size="small" onKeyDown={handlePreventKeyEvent} style={{ flex: '1' }} placeholder="请输入水印文案" value={item} onChange={(event) => { handleChangeText(index, event) }}></Input>
+                    <Button size="small" type="text" style={{ color: 'var(--transparent-gray-700)', marginLeft: '4px', flex: 'none' }} onClick={() => { handleDeleteText(index) }} icon={<DeleteFilled></DeleteFilled>}></Button>
+                  </div>
+                })}
+              </div>
+            </div>
+            <div className="right_section">
+              <div className="right_section_title">
+                <div>水印配置</div>
+              </div>
+              <div className="right_section_body">
+                <div className="rule_item">
+                  <div className="rule_label">水印大小</div>
+                  <div className="rule_body">
+                    <div className="rule_size">
+                      <div className="rule_size_label">宽度</div>
+                      <InputNumber style={{ width: '60px' }} controls={false} onKeyDown={handlePreventKeyEvent} onChange={(value) => { setWatermarkSize({ width: value || 0, height: watermarkSize.height }) }} value={watermarkSize.width} size="small"></InputNumber>
+                    </div>
+                    <div className="rule_size">
+                      <div className="rule_size_label">高度</div>
+                      <InputNumber style={{ width: '60px' }} controls={false} onKeyDown={handlePreventKeyEvent} onChange={(value) => { setWatermarkSize({ width: watermarkSize.width, height: value || 0 }) }} value={watermarkSize.height} size="small"></InputNumber>
+                    </div>
+                  </div>
+                </div>
+                <div className="rule_item">
+                  <div className="rule_label">文字颜色</div>
+                  <ColorPicker size="small" defaultValue={textColor} onChange={(value, hex) => { setTextColor(hex) }}></ColorPicker>
+                </div>
+                <div className="rule_item">
+                  <div className="rule_label">文字大小</div>
+                  <InputNumber controls={false} onKeyDown={handlePreventKeyEvent} size="small" min={12} value={textSize} onChange={(value) => { if (value !== null) { setTextSize(value) } }}></InputNumber>
+                </div>
+                <div className="rule_item">
+                  <div className="rule_label">旋转角度</div>
+                  <InputNumber controls={false} onKeyDown={handlePreventKeyEvent} size="small" min={0} max={360} value={rotate} onChange={(value) => { if (value !== null) { setRotate(value) } }}></InputNumber>
+                </div>
+                <div className="rule_item">
+                  <div className="rule_label">水印间距</div>
+                  <InputNumber controls={false} onKeyDown={handlePreventKeyEvent} size="small" min={0} value={textPadding} onChange={(value) => { if (value !== null) { setTextPadding(value) } }}></InputNumber>
+                </div>
+              </div>
+            </div>
+            <div className="right_section">
+              <div className="right_section_title">
+                <div>水印单元预览</div>
+              </div>
+              <div className="right_section_body">
+                <div className="watermark_unit_preview">
+                  <div style={{ transform: `scale(${previewScale})` }}>
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexDirection: 'column',
+                        width: `${watermarkSize.width}px`,
+                        height: `${watermarkSize.height}px`,
+                        padding: '12px',
+                        transform: `rotate(${-rotate}deg)`,
+                        transformOrigin: 'center',
+                      }}
+                    >
+                      {
+                        waterMarkValue.map((item, index) => {
+                          return (
+                            <div
+                              className='watermark_item'
+                              style={{
+                                fontSize: `${textSize}px`,
+                                color: `${textColor}`,
+                                fontWeight: '400',
+                                marginBottom: `${index === waterMarkValue.length - 1 ? 0 : textPadding}px`,
+                              }}
+                            >
+                              {item}
+                            </div>
+                          )
+                        })
+                      }
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            {isWaterMarkDisaled ? (
+              <Popover content="请先检查水印内容是否有填写">
+                <Button type="default" disabled style={{ width: '100%' }}>应用水印内容</Button>
+              </Popover>
+            ) : (
+              <Button type="default" onClick={generateWatermarkUnit} style={{ width: '100%' }}>应用水印内容</Button>
+            )}
           </div>
           <div className="divider"></div>
           <div className="right_bottom">
