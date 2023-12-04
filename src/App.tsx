@@ -5,7 +5,6 @@ import { BlendMode, PDFDocument } from 'pdf-lib'
 import { Button, Input, Checkbox, Pagination, Popover, Spin, message, ColorPicker, InputNumber } from 'antd'
 import { DeleteFilled, MenuOutlined, MinusOutlined, PlusOutlined, RedoOutlined, UploadOutlined } from '@ant-design/icons'
 import { TransformComponent, TransformWrapper, ReactZoomPanPinchRef } from 'react-zoom-pan-pinch'
-import { throttle } from 'lodash'
 import './App.css';
 import { chunkArray, getDomCanvas } from './utils';
 const work = require('pdfjs-dist/build/pdf.worker')
@@ -69,6 +68,12 @@ const App: React.FC = () => {
   }, [])
 
   const generateWatermarkUnit = useCallback(async () => {
+    if (!file) {
+      messageApi.warning({
+        content: '请先上传 pdf 文件',
+      })
+      return
+    }
     if (!watermarkUnitRef.current) return
     // 获取当前水印单元画布
     const watermarkCanvas = await getDomCanvas(watermarkUnitRef.current, devicePixelRatio)
@@ -92,7 +97,7 @@ const App: React.FC = () => {
       }
       reader.readAsArrayBuffer(blob)
     })
-  }, [devicePixelRatio, waterMarkValue, messageApi])
+  }, [devicePixelRatio, waterMarkValue, messageApi, file])
 
   const handleUpload = () => {
     if (uploadInputRef.current) {
@@ -108,7 +113,7 @@ const App: React.FC = () => {
     imagesListDataRef.current = []
     selectedPagesDataRef.current = []
     messageApi.info({
-      content: "文件解析中，请耐心等待",
+      content: "文件解析中...",
       duration: 0,
     })
     setTimeout(() => {
@@ -204,22 +209,6 @@ const App: React.FC = () => {
     }
   }
 
-  const handleWheel: React.WheelEventHandler<HTMLDivElement> = useCallback(throttle((event) => {
-    const { deltaY } = event
-    const max = imageList.length - 1
-    const min = 0
-    if (deltaY > 0) {
-      const result = currentImage + 1
-      if (result > max) return
-      setCurrentImage(result)
-    }
-    if (deltaY < 0) {
-      const result = currentImage - 1
-      if (result < min) return
-      setCurrentImage(result)
-    }
-  }, 250, { leading: false, trailing: true }), [currentImage, imageList])
-
   const handleTurnPage = useCallback((event: KeyboardEvent) => {
     if (imageList.length === 0) return
     const max = imageList.length - 1
@@ -283,7 +272,6 @@ const App: React.FC = () => {
           })
         })
         await Promise.all(promises).then((value) => {
-          messageApi.destroy()
           setCurrentPagesChunk(index)
           imagesListDataRef.current = [...imagesListDataRef.current, ...value]
           selectedPagesDataRef.current = [...selectedPagesDataRef.current, ...pages]
@@ -293,6 +281,10 @@ const App: React.FC = () => {
           setUploading(false)
         })
       }
+      messageApi.destroy()
+      messageApi.success({
+        content: '解析完毕！'
+      })
       setUploading(false)
     }
     genetateImages()
@@ -344,6 +336,9 @@ const App: React.FC = () => {
   // 如果有水印输入框没有内容，不能应用当前的水印内容
   const isWaterMarkDisaled = waterMarkValue.some(item => !item)
 
+  // 预览的缩放
+  const previewScale = Math.min((120 / watermarkSize.height), (288 / watermarkSize.width))
+
   return (
     <div className="app">
       {contextHolder}
@@ -380,9 +375,9 @@ const App: React.FC = () => {
                 </div>
               </div>
             )}
-            <div ref={leftMainRef} className={classNames('left_main', { 'left_main_images': imageList.length > 0 })} onWheel={handleWheel}>
+            <div ref={leftMainRef} className={classNames('left_main', { 'left_main_images': imageList.length > 0 })}>
               {file && (
-                <TransformWrapper ref={transformComponentRef} wheel={{ disabled: true }} centerOnInit centerZoomedOut minScale={0.2}>
+                <TransformWrapper ref={transformComponentRef} centerOnInit centerZoomedOut minScale={0.2}>
                   {({ zoomIn, zoomOut }) => {
                     return <>
                       <TransformComponent wrapperStyle={{ width: '100%', height: '100%', overflow: 'hidden' }}>
@@ -439,7 +434,7 @@ const App: React.FC = () => {
                   width: `${watermarkSize.width}px`,
                   height: `${watermarkSize.height}px`,
                   padding: '12px',
-                  transform: `rotate(${rotate}deg)`,
+                  transform: `rotate(${-rotate}deg)`,
                   transformOrigin: 'center',
                 }}
                 ref={watermarkUnitRef}
@@ -496,13 +491,13 @@ const App: React.FC = () => {
               <div className="right_section">
                 <div className="right_section_title">
                   <div>文字水印</div>
-                  <Button type="text" onClick={handleAddText} icon={<PlusOutlined></PlusOutlined>}></Button>
+                  <Button size="small" type="text" onClick={handleAddText} icon={<PlusOutlined></PlusOutlined>}></Button>
                 </div>
-                <div className="right_section_body">
+                <div className="right_section_body text_body">
                   {waterMarkValue.map((item, index) => {
                     return <div className="text_item">
-                      <Input onKeyDown={handlePreventKeyEvent} style={{ flex: '1' }} placeholder="请输入水印文案" value={item} onChange={(event) => { handleChangeText(index, event) }}></Input>
-                      <Button type="text" style={{ color: 'var(--transparent-gray-700)', marginLeft: '4px', flex: 'none' }} onClick={() => { handleDeleteText(index) }} icon={<DeleteFilled></DeleteFilled>}></Button>
+                      <Input size="small" onKeyDown={handlePreventKeyEvent} style={{ flex: '1' }} placeholder="请输入水印文案" value={item} onChange={(event) => { handleChangeText(index, event) }}></Input>
+                      <Button size="small" type="text" style={{ color: 'var(--transparent-gray-700)', marginLeft: '4px', flex: 'none' }} onClick={() => { handleDeleteText(index) }} icon={<DeleteFilled></DeleteFilled>}></Button>
                     </div>
                   })}
                 </div>
@@ -543,18 +538,61 @@ const App: React.FC = () => {
                   </div>
                 </div>
               </div>
+              <div className="right_section">
+                <div className="right_section_title">
+                  <div>水印单元预览</div>
+                </div>
+                <div className="right_section_body">
+                  <div className="watermark_unit_preview">
+                    <div style={{ transform: `scale(${previewScale})` }}>
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          flexDirection: 'column',
+                          width: `${watermarkSize.width}px`,
+                          height: `${watermarkSize.height}px`,
+                          padding: '12px',
+                          transform: `rotate(${-rotate}deg)`,
+                          transformOrigin: 'center',
+                        }}
+                      >
+                        {
+                          waterMarkValue.map((item, index) => {
+                            return (
+                              <div
+                                className='watermark_item'
+                                style={{
+                                  fontSize: `${textSize}px`,
+                                  color: `${textColor}`,
+                                  fontWeight: '400',
+                                  marginBottom: `${index === waterMarkValue.length - 1 ? 0 : textPadding}px`,
+                                }}
+                              >
+                                {item}
+                              </div>
+                            )
+                          })
+                        }
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
               {isWaterMarkDisaled ? (
                 <Popover content="请先检查水印内容是否有填写">
-                  <Button type="primary" disabled style={{ width: '100%' }}>应用水印内容</Button>
+                  <Button type="default" disabled style={{ width: '100%' }}>应用水印内容</Button>
                 </Popover>
               ) : (
-                <Button type="primary" onClick={generateWatermarkUnit} style={{ width: '100%' }}>应用水印内容</Button>
+                <Button type="default" onClick={generateWatermarkUnit} style={{ width: '100%' }}>应用水印内容</Button>
               )}
             </div>
           </div>
+          <div className="divider"></div>
           <div className="right_bottom">
-            {exportDisabled && <Popover content="导出水印前，请先应用水印内容" placement="top"><div><Button onClick={handleDownload} loading={generating} disabled style={{ width: '100%' }}>导出文件</Button></div></Popover>}
-            {!exportDisabled && <Button onClick={handleDownload} loading={generating} style={{ width: '100%' }}>导出文件</Button>}
+            {exportDisabled && <Popover content="导出水印前，请先应用水印内容" placement="top"><div><Button type="primary" onClick={handleDownload} loading={generating} disabled style={{ width: '100%' }}>导出文件</Button></div></Popover>}
+            {!exportDisabled && <Button type="primary" onClick={handleDownload} loading={generating} style={{ width: '100%' }}>导出文件</Button>}
           </div>
         </div>
       </div>
