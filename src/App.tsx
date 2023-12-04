@@ -1,22 +1,13 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import * as pdfjsLib from 'pdfjs-dist';
 import html2canvas from 'html2canvas';
 import classNames from 'classnames';
 import { BlendMode, PDFDocument } from 'pdf-lib'
-import imageCompression from 'browser-image-compression';
-import { Button, Form, Input, Message, Checkbox, Pagination, Icon, Popover, Spinner } from 'adui'
+import { Button, Input, Message, Checkbox, Pagination, Icon, Popover, Spinner } from 'adui'
 import { TransformComponent, TransformWrapper, ReactZoomPanPinchRef } from 'react-zoom-pan-pinch'
 import { throttle } from 'lodash'
-import axios from 'axios'
-import { Buffer } from 'buffer';
 import './App.css';
-import { waterMarkData, sizeData, ISizeData } from './data'
-import { debug } from 'console';
-const work = require('pdfjs-dist/build/pdf.worker')
-// import './pdfjsWorkerSetup.js';
-pdfjsLib.GlobalWorkerOptions.workerSrc = work
-
-type SizeDataKeys = keyof ISizeData
+import { waterMarkData } from './data'
 
 interface WatermarkUnitData {
   base64Data: string
@@ -30,10 +21,6 @@ interface ImageData {
   data: string
 }
 
-interface FileData {
-  name: string
-  data: ArrayBuffer | string
-}
 
 const getDomCanvas = async <T extends HTMLElement,>(dom: T, devicePixelRatio: number) => {
   const canvasdom = document.createElement("canvas");
@@ -93,7 +80,6 @@ const App: React.FC = () => {
   const waterUnitWidth = 222
   const waterUnitHeight = 168
   const scalePoint = 1600
-  const offsetX = 138;
 
   const generateWatermarkUnit = useCallback(async () => {
     if (!watermarkUnitRef.current) return
