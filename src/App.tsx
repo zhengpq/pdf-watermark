@@ -2,11 +2,12 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import * as pdfjsLib from 'pdfjs-dist';
 import classNames from 'classnames';
 import { BlendMode, PDFDocument } from 'pdf-lib'
-import { Button, Input, Checkbox, Pagination, Popover, Spin, message, ColorPicker, InputNumber } from 'antd'
+import { Button, Input, Checkbox, Pagination, Popover, Spin, message, ColorPicker, InputNumber, Select, Upload } from 'antd'
 import { DeleteFilled, MenuOutlined, MinusOutlined, PlusOutlined, RedoOutlined, UploadOutlined } from '@ant-design/icons'
 import { TransformComponent, TransformWrapper, ReactZoomPanPinchRef } from 'react-zoom-pan-pinch'
 import './App.css';
 import { chunkArray, getDomCanvas } from './utils';
+import { RcFile } from 'antd/es/upload';
 const work = require('pdfjs-dist/build/pdf.worker')
 pdfjsLib.GlobalWorkerOptions.workerSrc = work
 
@@ -23,22 +24,47 @@ interface ImageData {
   data: string
 }
 
+enum WaterMarkType {
+  TEXT = 'TEXT',
+  IMAGE = 'IMAGE'
+}
+
+const waterMarkTypeOptions = [
+  {
+    value: WaterMarkType.TEXT,
+    label: '文字水印',
+  },
+  {
+    value: WaterMarkType.IMAGE,
+    label: '图片水印'
+  }
+]
+
 
 const waterUnitWidth = 200
 const waterUnitHeight = 160
+const waterUnitPadding = 20
+
+const acceptImageType = ['png', 'jpeg', 'webp', 'svg+xml']
+const imageMaxSize = 1024 * 1024 / 2
+const tips = [
+  `图片类型：${acceptImageType.join(',')}`,
+  '图片大小：小于 500 KB'
+]
 
 
 const App: React.FC = () => {
   const [messageApi, contextHolder] = message.useMessage()
   const [file, setFile] = useState<ArrayBuffer | string>('')
   const [fileName, setFileName] = useState('')
+  const [waterMarkType, setWaterMarkType] = useState<WaterMarkType>(WaterMarkType.TEXT)
   const [watermarkUnit, setWatermarkUnit] = useState<WatermarkUnitData | null>(null)
   const [imageList, setImageList] = useState<ImageData[]>([])
   const [currentImage, setCurrentImage] = useState(0)
   const [currentPagesChunk, setCurrentPagesChunk] = useState(0)
   const [waterMarkValue, setWaterMarkValue] = useState<Array<string>>([''])
   const [watermarkSize, setWatermarkSize] = useState({ width: waterUnitWidth, height: waterUnitHeight })
-  const [watermarkPreviewSize, setWatermarkPreviewSize] = useState({ width: 0 })
+  const [watermarkPreviewSize, setWatermarkPreviewSize] = useState(0)
   const [textColor, setTextColor] = useState('rgba(80, 80, 80, 0.3)')
   const [textSize, setTextSize] = useState(14)
   const [rotate, setRotate] = useState(0)
@@ -62,6 +88,14 @@ const App: React.FC = () => {
   const devicePixelRatio = window.devicePixelRatio
   const scalePoint = 1600
 
+  const reset = useCallback(() => {
+    setWaterMarkValue([''])
+    setWatermarkSize({
+      width: waterUnitWidth,
+      height: waterUnitHeight,
+    })
+  }, [])
+
   // 防止输入框触发全局键盘事件
   const handlePreventKeyEvent: React.KeyboardEventHandler<HTMLInputElement> = useCallback((event) => {
     event.stopPropagation()
@@ -73,6 +107,10 @@ const App: React.FC = () => {
         content: '请先上传 pdf 文件',
       })
       return
+    }
+    if (pageWidth.current) {
+      const widthPercent = watermarkSize.width / pageWidth.current
+      setWatermarkPreviewSize(widthPercent)
     }
     if (!watermarkUnitRef.current) return
     // 获取当前水印单元画布
@@ -97,12 +135,44 @@ const App: React.FC = () => {
       }
       reader.readAsArrayBuffer(blob)
     })
-  }, [devicePixelRatio, waterMarkValue, messageApi, file])
+  }, [devicePixelRatio, waterMarkValue, messageApi, file, watermarkSize])
 
   const handleUpload = () => {
     if (uploadInputRef.current) {
       uploadInputRef.current.click()
     }
+  }
+
+  const handleImageChange = (file: RcFile, fileList: any) => {
+    const { size } = file
+    if (size > imageMaxSize) {
+      messageApi.warning({
+        content: '图片不可大于 500KB'
+      })
+      return
+    }
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      if (event.target?.result) {
+        const fileData = event.target.result.toString();
+
+        const image = new Image()
+        image.src = fileData
+        image.onload = () => {
+          setWaterMarkValue([fileData])
+          setWatermarkSize({
+            width: image.width + waterUnitPadding,
+            height: image.height + waterUnitPadding
+          })
+        }
+      }
+    };
+    reader.readAsDataURL(file);
+    return false
+  }
+
+  const handleRemoveImage = () => {
+    reset()
   }
 
   const handleFileChange: React.ChangeEventHandler<HTMLInputElement> = async (event) => {
@@ -200,7 +270,7 @@ const App: React.FC = () => {
     setImageList([])
     setCurrentImage(0)
     setFileName('')
-    setWatermarkPreviewSize({ width: 0 })
+    setWatermarkPreviewSize(0)
     setCurrentPagesChunk(0)
     transformComponentRef.current?.resetTransform()
     transformComponentRef.current?.centerView(0.8)
@@ -296,10 +366,6 @@ const App: React.FC = () => {
       setCurrentImage(0)
       //设置背景的缩放倍数
       if (!leftMainRef.current || !pageWidth.current) return
-      const scale = waterUnitWidth / pageWidth.current
-      setWatermarkPreviewSize({
-        width: scale
-      })
       const timer = setTimeout(() => {
         transformComponentRef.current?.resetTransform()
         transformComponentRef.current?.centerView(0.7)
@@ -329,7 +395,6 @@ const App: React.FC = () => {
     }
   }, [currentImage])
 
-
   // 是否能够导出文件
   const exportDisabled = !watermarkUnit || !generateWatermarkUnitFinish || !file
 
@@ -338,6 +403,33 @@ const App: React.FC = () => {
 
   // 预览的缩放
   const previewScale = Math.min((120 / watermarkSize.height), (288 / watermarkSize.width))
+
+  // 预览内容
+  const waterUnitConttent = <>
+    {
+      waterMarkValue.map((item, index) => {
+        if (waterMarkType === WaterMarkType.TEXT) {
+          return (
+            <div
+              className='watermark_item'
+              style={{
+                fontSize: `${textSize}px`,
+                color: `${textColor}`,
+                fontWeight: '400',
+                marginBottom: `${index === waterMarkValue.length - 1 ? 0 : textPadding}px`,
+              }}
+            >
+              {item}
+            </div>
+          )
+        }
+        if (waterMarkType === WaterMarkType.IMAGE) {
+          return <img src={item} alt="" />
+        }
+        return null
+      })
+    }
+  </>
 
   return (
     <div className="app">
@@ -391,7 +483,7 @@ const App: React.FC = () => {
                                 backgroundImage: `url(${watermarkUnit?.base64Data})`,
                                 backgroundRepeat: 'repeat',
                                 backgroundPosition: '0px 0px',
-                                backgroundSize: `${watermarkPreviewSize.width * 100}% auto`,
+                                backgroundSize: `${watermarkPreviewSize * 100}% auto`,
                               }}>
                             </div>
                           )}
@@ -433,29 +525,13 @@ const App: React.FC = () => {
                   flexDirection: 'column',
                   width: `${watermarkSize.width}px`,
                   height: `${watermarkSize.height}px`,
-                  padding: '12px',
+                  padding: `${waterUnitPadding}px`,
                   transform: `rotate(${-rotate}deg)`,
                   transformOrigin: 'center',
                 }}
                 ref={watermarkUnitRef}
               >
-                {
-                  waterMarkValue.map((item, index) => {
-                    return (
-                      <div
-                        className='watermark_item'
-                        style={{
-                          fontSize: `${textSize}px`,
-                          color: `${textColor}`,
-                          fontWeight: '400',
-                          marginBottom: `${index === waterMarkValue.length - 1 ? 0 : textPadding}px`,
-                        }}
-                      >
-                        {item}
-                      </div>
-                    )
-                  })
-                }
+                {waterUnitConttent}
               </div>
             </div>
           </div>
@@ -489,17 +565,48 @@ const App: React.FC = () => {
             </div>
             <div className="right_section">
               <div className="right_section_title">
-                <div>文字水印</div>
-                <Button size="small" type="text" onClick={handleAddText} icon={<PlusOutlined></PlusOutlined>}></Button>
+                <Select
+                  bordered={false}
+                  value={waterMarkType}
+                  style={{ marginLeft: '-7px' }}
+                  size="small"
+                  onChange={(value) => {
+                    setWaterMarkType(value)
+                    reset()
+                  }}
+                  options={waterMarkTypeOptions}
+                >
+                </Select>
+                {waterMarkType === WaterMarkType.TEXT && (
+                  <Button size="small" type="text" onClick={handleAddText} icon={<PlusOutlined></PlusOutlined>}></Button>
+                )}
               </div>
-              <div className="right_section_body text_body">
-                {waterMarkValue.map((item, index) => {
-                  return <div className="text_item">
-                    <Input size="small" onKeyDown={handlePreventKeyEvent} style={{ flex: '1' }} placeholder="请输入水印文案" value={item} onChange={(event) => { handleChangeText(index, event) }}></Input>
-                    <Button size="small" type="text" style={{ color: 'var(--transparent-gray-700)', marginLeft: '4px', flex: 'none' }} onClick={() => { handleDeleteText(index) }} icon={<DeleteFilled></DeleteFilled>}></Button>
+              {
+                waterMarkType === WaterMarkType.TEXT && (
+                  <div className="right_section_body text_body">
+                    {waterMarkValue.map((item, index) => {
+                      return <div className="text_item">
+                        <Input size="small" onKeyDown={handlePreventKeyEvent} style={{ flex: '1' }} placeholder="请输入水印文案" value={item} onChange={(event) => { handleChangeText(index, event) }}></Input>
+                        <Button size="small" type="text" style={{ color: 'var(--transparent-gray-700)', marginLeft: '4px', flex: 'none' }} onClick={() => { handleDeleteText(index) }} icon={<DeleteFilled></DeleteFilled>}></Button>
+                      </div>
+                    })}
                   </div>
-                })}
-              </div>
+                )
+              }
+              {
+                waterMarkType === WaterMarkType.IMAGE && (
+                  <div className="right_section_body">
+                    <Upload maxCount={1} action="" onRemove={handleRemoveImage} beforeUpload={handleImageChange} accept={acceptImageType.map(item => `image/${item}`).join(', ')}>
+                      <Button style={{ width: '288px' }}>请选择图片</Button>
+                    </Upload>
+                    <div className="tip">
+                      {tips.map(item => (
+                        <div>{item}</div>
+                      ))}
+                    </div>
+                  </div>
+                )
+              }
             </div>
             <div className="right_section">
               <div className="right_section_title">
@@ -520,21 +627,25 @@ const App: React.FC = () => {
                   </div>
                 </div>
                 <div className="rule_item">
-                  <div className="rule_label">文字颜色</div>
-                  <ColorPicker size="small" defaultValue={textColor} onChange={(value, hex) => { setTextColor(hex) }}></ColorPicker>
-                </div>
-                <div className="rule_item">
-                  <div className="rule_label">文字大小</div>
-                  <InputNumber controls={false} onKeyDown={handlePreventKeyEvent} size="small" min={12} value={textSize} onChange={(value) => { if (value !== null) { setTextSize(value) } }}></InputNumber>
-                </div>
-                <div className="rule_item">
                   <div className="rule_label">旋转角度</div>
                   <InputNumber controls={false} onKeyDown={handlePreventKeyEvent} size="small" min={0} max={360} value={rotate} onChange={(value) => { if (value !== null) { setRotate(value) } }}></InputNumber>
                 </div>
-                <div className="rule_item">
-                  <div className="rule_label">水印间距</div>
-                  <InputNumber controls={false} onKeyDown={handlePreventKeyEvent} size="small" min={0} value={textPadding} onChange={(value) => { if (value !== null) { setTextPadding(value) } }}></InputNumber>
-                </div>
+                {waterMarkType === WaterMarkType.TEXT && (
+                  <>
+                    <div className="rule_item">
+                      <div className="rule_label">文字颜色</div>
+                      <ColorPicker size="small" defaultValue={textColor} onChange={(value, hex) => { setTextColor(hex) }}></ColorPicker>
+                    </div>
+                    <div className="rule_item">
+                      <div className="rule_label">文字大小</div>
+                      <InputNumber controls={false} onKeyDown={handlePreventKeyEvent} size="small" min={12} value={textSize} onChange={(value) => { if (value !== null) { setTextSize(value) } }}></InputNumber>
+                    </div>
+                    <div className="rule_item">
+                      <div className="rule_label">水印间距</div>
+                      <InputNumber controls={false} onKeyDown={handlePreventKeyEvent} size="small" min={0} value={textPadding} onChange={(value) => { if (value !== null) { setTextPadding(value) } }}></InputNumber>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
             <div className="right_section">
@@ -552,28 +663,12 @@ const App: React.FC = () => {
                         flexDirection: 'column',
                         width: `${watermarkSize.width}px`,
                         height: `${watermarkSize.height}px`,
-                        padding: '12px',
+                        padding: `${waterUnitPadding}px`,
                         transform: `rotate(${-rotate}deg)`,
                         transformOrigin: 'center',
                       }}
                     >
-                      {
-                        waterMarkValue.map((item, index) => {
-                          return (
-                            <div
-                              className='watermark_item'
-                              style={{
-                                fontSize: `${textSize}px`,
-                                color: `${textColor}`,
-                                fontWeight: '400',
-                                marginBottom: `${index === waterMarkValue.length - 1 ? 0 : textPadding}px`,
-                              }}
-                            >
-                              {item}
-                            </div>
-                          )
-                        })
-                      }
+                      {waterUnitConttent}
                     </div>
                   </div>
                 </div>
@@ -589,7 +684,7 @@ const App: React.FC = () => {
           </div>
           <div className="divider"></div>
           <div className="right_bottom">
-            {exportDisabled && <Popover content="导出水印前，请先应用水印内容" placement="top"><div><Button type="primary" onClick={handleDownload} loading={generating} disabled style={{ width: '100%' }}>导出文件</Button></div></Popover>}
+            {exportDisabled && <Popover content="导出水印前，请先应用水印内容" placement="top"><div><Button type="primary" loading={generating} disabled style={{ width: '100%' }}>导出文件</Button></div></Popover>}
             {!exportDisabled && <Button type="primary" onClick={handleDownload} loading={generating} style={{ width: '100%' }}>导出文件</Button>}
           </div>
         </div>

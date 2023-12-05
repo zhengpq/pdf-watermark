@@ -298,6 +298,13 @@ img {
   margin-bottom: 12px;
 }
 
+/* .right_section_body {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+} */
+
 .text_body {
   max-height: 88px;
   overflow-y: auto;
@@ -306,6 +313,7 @@ img {
 .text_item {
   display: flex;
   align-items: center;
+  width: 100%;
   margin-bottom: 8px;
 }
 
@@ -451,4 +459,11 @@ img {
 
 .export_button {
   padding: 0 16px;
+}
+
+.tip {
+  font-size: 12px;
+  line-height: 18px;
+  margin-top: 4px;
+  color: var(--transparent-gray-700);
 }
