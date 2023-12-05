@@ -3,7 +3,7 @@ import * as pdfjsLib from 'pdfjs-dist';
 import classNames from 'classnames';
 import { BlendMode, PDFDocument } from 'pdf-lib'
 import { Button, Input, Checkbox, Pagination, Popover, Spin, message, ColorPicker, InputNumber } from 'antd'
-import { DeleteFilled, MenuOutlined, MinusOutlined, PlusOutlined, RedoOutlined, UploadOutlined } from '@ant-design/icons'
+import { DeleteFilled, GithubOutlined, MenuOutlined, MinusOutlined, PlusOutlined, RedoOutlined, UploadOutlined } from '@ant-design/icons'
 import { TransformComponent, TransformWrapper, ReactZoomPanPinchRef } from 'react-zoom-pan-pinch'
 import './App.css';
 import { chunkArray, getDomCanvas } from './utils';
@@ -343,6 +343,7 @@ const App: React.FC = () => {
       {contextHolder}
       <div className="header">
         <div className="logo_text">WaterMarks for PDF</div>
+        <Button type="text" style={{ color: 'white' }} onClick={() => { window.open('https://github.com/zhengpq/pdf-watermark', '_blank') }} icon={<GithubOutlined></GithubOutlined>}></Button>
       </div>
       <div className="main">
         <div className="left">

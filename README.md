@@ -2,9 +2,19 @@
 
 一个快速给 pdf 文件加水印的工具
 
-## 体验地址
+## 线上地址
 
 [https://zhengpq.github.io/pdf-watermark/](https://zhengpq.github.io/pdf-watermark/)
+
+## 本地运行
+
+clone 本项目然后运行一下命令即可在本地体验
+
+```
+npm install
+
+npm run start
+```
 
 ## 具备功能
 
