@@ -161,7 +161,6 @@ const App: React.FC = () => {
         for (let row = 0; row < rows; row++) {
           for (let col = 0; col < columns; col++) {
             page.drawImage(watermarkImage, {
-              blendMode: BlendMode.Exclusion,
               x: col * watermarkWidth,
               y: height - (watermarkHeight * (row + 1)),
               width: watermarkWidth,
