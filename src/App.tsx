@@ -1,9 +1,9 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import * as pdfjsLib from 'pdfjs-dist';
 import classNames from 'classnames';
-import { BlendMode, PDFDocument } from 'pdf-lib'
+import { PDFDocument } from 'pdf-lib'
 import { Button, Input, Checkbox, Pagination, Popover, Spin, message, ColorPicker, InputNumber, Select, Upload } from 'antd'
-import { DeleteFilled, MenuOutlined, MinusOutlined, PlusOutlined, RedoOutlined, UploadOutlined } from '@ant-design/icons'
+import { DeleteFilled, GifOutlined, MenuOutlined, MinusOutlined, PlusOutlined, RedoOutlined, UploadOutlined } from '@ant-design/icons'
 import { TransformComponent, TransformWrapper, ReactZoomPanPinchRef } from 'react-zoom-pan-pinch'
 import './App.css';
 import { chunkArray, getDomCanvas } from './utils';
@@ -231,7 +231,6 @@ const App: React.FC = () => {
         for (let row = 0; row < rows; row++) {
           for (let col = 0; col < columns; col++) {
             page.drawImage(watermarkImage, {
-              blendMode: BlendMode.Exclusion,
               x: col * watermarkWidth,
               y: height - (watermarkHeight * (row + 1)),
               width: watermarkWidth,
@@ -436,6 +435,7 @@ const App: React.FC = () => {
       {contextHolder}
       <div className="header">
         <div className="logo_text">WaterMarks for PDF</div>
+        <Button type="text" style={{ color: 'white' }} onClick={() => { window.open('https://github.com/zhengpq/pdf-watermark', '_blank') }} icon={<GifOutlined></GifOutlined>}></Button>
       </div>
       <div className="main">
         <div className="left">
