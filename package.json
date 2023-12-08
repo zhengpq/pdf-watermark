@@ -76,6 +76,7 @@
   "scripts": {
     "start": "node scripts/start.js",
     "build": "PUBLIC_URL=/pdf-watermark/ node scripts/build.js",
+    "build-doc": "BUILD_PATH=docs PUBLIC_URL=/pdf-watermark/ node scripts/build.js",
     "test": "node scripts/test.js"
   },
   "eslintConfig": {
