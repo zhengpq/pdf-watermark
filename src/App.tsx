@@ -3,7 +3,7 @@ import * as pdfjsLib from 'pdfjs-dist';
 import classNames from 'classnames';
 import { PDFDocument } from 'pdf-lib'
 import { Button, Input, Checkbox, Pagination, Popover, Spin, message, ColorPicker, InputNumber, Select, Upload } from 'antd'
-import { DeleteFilled, GifOutlined, GithubFilled, GithubOutlined, MenuOutlined, MinusOutlined, PlusOutlined, RedoOutlined, UploadOutlined } from '@ant-design/icons'
+import { DeleteFilled, GithubOutlined, MenuOutlined, MinusOutlined, PlusOutlined, RedoOutlined, UploadOutlined } from '@ant-design/icons'
 import { TransformComponent, TransformWrapper, ReactZoomPanPinchRef } from 'react-zoom-pan-pinch'
 import './App.css';
 import { chunkArray, getDomCanvas } from './utils';
@@ -71,7 +71,6 @@ const App: React.FC = () => {
   const [textPadding, setTextPadding] = useState(12)
   const [selectedPages, setSelectedPages] = useState<number[]>([])
   const [slideHidden, setSlideHidden] = useState(false)
-  const [generating, setGenerating] = useState(false)
   const [generateWatermarkUnitFinish, setGenerateWatermarkUnitFinish] = useState(false)
   const [uploading, setUploading] = useState(false)
   const watermarkUnitRef = useRef<HTMLDivElement>(null)
@@ -684,8 +683,8 @@ const App: React.FC = () => {
           </div>
           <div className="divider"></div>
           <div className="right_bottom">
-            {exportDisabled && <Popover content="导出水印前，请先应用水印内容" placement="top"><div><Button type="primary" loading={generating} disabled style={{ width: '100%' }}>导出文件</Button></div></Popover>}
-            {!exportDisabled && <Button type="primary" onClick={handleDownload} loading={generating} style={{ width: '100%' }}>导出文件</Button>}
+            {exportDisabled && <Popover content="导出水印前，请先应用水印内容" placement="top"><div><Button type="primary"  disabled style={{ width: '100%' }}>导出文件</Button></div></Popover>}
+            {!exportDisabled && <Button type="primary" onClick={handleDownload} style={{ width: '100%' }}>导出文件</Button>}
           </div>
         </div>
       </div>
