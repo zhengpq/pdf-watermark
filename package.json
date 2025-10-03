@@ -73,11 +73,45 @@
     "webpack-manifest-plugin": "^4.0.2",
     "workbox-webpack-plugin": "^6.4.1"
   },
+  "main": "electron.js",
+  "homepage": "./",
   "scripts": {
     "start": "node scripts/start.js",
-    "build": "PUBLIC_URL=/pdf-watermark/ node scripts/build.js",
+    "build": "node scripts/build.js",
     "build-doc": "BUILD_PATH=docs PUBLIC_URL=/pdf-watermark/ node scripts/build.js",
-    "test": "node scripts/test.js"
+    "test": "node scripts/test.js",
+    "electron": "electron .",
+    "electron-build": "electron-builder",
+    "pack": "npm run build && npm run electron-build"
+  },
+  "build": {
+    "appId": "com.pdfwatermark.app",
+    "productName": "PDF水印工具",
+    "directories": {
+      "buildResources": "build"
+    },
+    "files": [
+      "build/**/*",
+      "electron.js",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    },
+    "npmRebuild": false
   },
   "eslintConfig": {
     "extends": [
@@ -99,7 +133,9 @@
   },
   "devDependencies": {
     "@types/lodash": "^4.14.201",
-    "@types/spark-md5": "^3.0.4"
+    "@types/spark-md5": "^3.0.4",
+    "electron": "^38.2.0",
+    "electron-builder": "^26.0.12"
   },
   "jest": {
     "roots": [

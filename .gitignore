@@ -13,6 +13,9 @@
 # production
 /build
 
+# electron build output
+/dist
+
 # misc
 .DS_Store
 .env.local
