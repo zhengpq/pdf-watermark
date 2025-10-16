@@ -24,9 +24,9 @@ const ImageWatermark: React.FC = () => {
   const [watermarkTexts, setWatermarkTexts] = useState<string[]>(['xx信息技术有限公司']);
   const [watermarkOptions, setWatermarkOptions] = useState<Omit<ImageWatermarkOptions, 'text'>>({
     fontSize: 24,
-    color: 'rgba(0, 0, 0, 0.5)',
-    opacity: 0.7,
-    angle: 45,
+    color: 'rgba(80, 80, 80, 0.3)', // 适中的透明度，确保水印可见
+    opacity: 0.3, // 适中的透明度，确保水印可见
+    angle: 30, // 调整角度，与PDF水印一致
     position: 'center',
     offsetX: 0,
     offsetY: 0,

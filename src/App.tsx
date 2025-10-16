@@ -462,8 +462,8 @@ const App: React.FC = () => {
     <div className="app">
       {contextHolder}
       <div className="header">
-        <div className="logo_text">WaterMarks Tool</div>
-        <Button type="text" style={{ color: 'white' }} onClick={() => { window.open('https://github.com/zhengpq/pdf-watermark', '_blank') }} icon={<GithubOutlined></GithubOutlined>}></Button>
+        <div className="logo_text">Watermarker</div>
+        <Button type="text" style={{ color: 'white' }} onClick={() => { window.open('https://github.com/hanyouqing/watermarker', '_blank') }} icon={<GithubOutlined></GithubOutlined>}></Button>
       </div>
       
       <Tabs

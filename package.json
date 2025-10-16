@@ -1,5 +1,5 @@
 {
-  "name": "pdf-watermark",
+  "name": "watermarker",
   "version": "0.1.0",
   "private": true,
   "dependencies": {
@@ -75,8 +75,8 @@
   },
   "scripts": {
     "start": "node scripts/start.js",
-    "build": "PUBLIC_URL=/pdf-watermark/ node scripts/build.js",
-    "build-doc": "BUILD_PATH=docs PUBLIC_URL=/pdf-watermark/ node scripts/build.js",
+    "build": "PUBLIC_URL=/watermarker/ node scripts/build.js",
+    "build-doc": "BUILD_PATH=docs PUBLIC_URL=/watermarker/ node scripts/build.js",
     "test": "node scripts/test.js"
   },
   "eslintConfig": {

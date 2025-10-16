@@ -30,6 +30,8 @@ export async function addWatermarkToImage(
     }
 
     img.onload = () => {
+      console.log('图片加载成功，尺寸:', img.width, 'x', img.height);
+      
       // 设置canvas尺寸
       canvas.width = img.width;
       canvas.height = img.height;
@@ -46,11 +48,16 @@ export async function addWatermarkToImage(
 
       // 获取要绘制的水印文字
       const textsToDraw = watermarkTexts && watermarkTexts.length > 0 ? watermarkTexts : [options.text];
+      console.log('水印文字:', textsToDraw);
+      console.log('水印选项:', options);
       
-      // 计算水印间距
-      const spacing = options.fontSize * 2;
+      // 计算水印间距 - 降低密度到原来的五分之一
+      // 使用更大的间距，让水印更加稀疏
+      const spacing = Math.max(options.fontSize * 15, 400); // 大幅增加间距，降低密度
+      console.log('水印间距:', spacing);
       
       // 平铺水印
+      let watermarkCount = 0;
       for (let y = spacing; y < canvas.height + spacing; y += spacing) {
         for (let x = spacing; x < canvas.width + spacing; x += spacing) {
           // 保存当前状态
@@ -64,6 +71,7 @@ export async function addWatermarkToImage(
           textsToDraw.forEach((text, index) => {
             if (text.trim()) {
               ctx.fillText(text, 0, index * (options.fontSize + 5));
+              watermarkCount++;
             }
           });
           
@@ -71,6 +79,7 @@ export async function addWatermarkToImage(
           ctx.restore();
         }
       }
+      console.log('总共绘制了', watermarkCount, '个水印');
 
       // 转换为base64
       const result = canvas.toDataURL('image/png');
