@@ -2,12 +2,13 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import * as pdfjsLib from 'pdfjs-dist';
 import classNames from 'classnames';
 import { PDFDocument } from 'pdf-lib'
-import { Button, Input, Checkbox, Pagination, Popover, Spin, message, ColorPicker, InputNumber, Select, Upload } from 'antd'
-import { DeleteFilled, GithubOutlined, MenuOutlined, MinusOutlined, PlusOutlined, RedoOutlined, UploadOutlined } from '@ant-design/icons'
+import { Button, Input, Checkbox, Pagination, Popover, Spin, message, ColorPicker, InputNumber, Select, Upload, Tabs } from 'antd'
+import { DeleteFilled, GithubOutlined, MenuOutlined, MinusOutlined, PlusOutlined, RedoOutlined, UploadOutlined, FileImageOutlined, FilePdfOutlined } from '@ant-design/icons'
 import { TransformComponent, TransformWrapper, ReactZoomPanPinchRef } from 'react-zoom-pan-pinch'
 import './App.css';
 import { chunkArray, getDomCanvas } from './utils';
 import { RcFile } from 'antd/es/upload';
+import ImageWatermark from './ImageWatermark';
 
 // 配置PDF.js worker
 try {
@@ -48,9 +49,9 @@ const waterMarkTypeOptions = [
 ]
 
 
-const waterUnitWidth = 200
-const waterUnitHeight = 160
-const waterUnitPadding = 20
+const waterUnitWidth = 300
+const waterUnitHeight = 200
+const waterUnitPadding = 50
 
 const acceptImageType = ['png', 'jpeg', 'webp', 'svg+xml']
 const imageMaxSize = 1024 * 1024 / 2
@@ -72,14 +73,15 @@ const App: React.FC = () => {
   const [waterMarkValue, setWaterMarkValue] = useState<Array<string>>(['xx信息技术有限公司'])
   const [watermarkSize, setWatermarkSize] = useState({ width: waterUnitWidth, height: waterUnitHeight })
   const [watermarkPreviewSize, setWatermarkPreviewSize] = useState(0)
-  const [textColor, setTextColor] = useState('rgba(80, 80, 80, 0.3)')
-  const [textSize, setTextSize] = useState(14)
-  const [rotate, setRotate] = useState(45)
-  const [textPadding, setTextPadding] = useState(12)
+  const [textColor, setTextColor] = useState('rgba(80, 80, 80, 0.15)')
+  const [textSize, setTextSize] = useState(16)
+  const [rotate, setRotate] = useState(30)
+  const [textPadding, setTextPadding] = useState(20)
   const [selectedPages, setSelectedPages] = useState<number[]>([])
   const [slideHidden, setSlideHidden] = useState(false)
   const [generateWatermarkUnitFinish, setGenerateWatermarkUnitFinish] = useState(false)
   const [uploading, setUploading] = useState(false)
+  const [activeTab, setActiveTab] = useState('pdf')
   const watermarkUnitRef = useRef<HTMLDivElement>(null)
   const transformComponentRef = useRef<ReactZoomPanPinchRef | null>(null)
   const selectTransformRef = useRef<HTMLDivElement>(null)
@@ -244,18 +246,20 @@ const App: React.FC = () => {
         const page = pdfDoc.getPage(i);
         const { width, height } = page.getSize();
 
-        // 计算水印图片的行数和列数，以便铺满整个页面
+        // 计算水印图片的行数和列数，增加间距避免过于密集
         const watermarkWidth = watermarkSize.width;
         const watermarkHeight = watermarkSize.height;
-        const columns = Math.ceil(width / watermarkWidth);
-        const rows = Math.ceil(height / watermarkHeight);
+        const spacingX = watermarkWidth * 0.5; // 增加水平间距
+        const spacingY = watermarkHeight * 0.5; // 增加垂直间距
+        const columns = Math.ceil(width / (watermarkWidth + spacingX));
+        const rows = Math.ceil(height / (watermarkHeight + spacingY));
 
-        // 在页面上重复绘制水印图片
+        // 在页面上重复绘制水印图片，使用新的间距
         for (let row = 0; row < rows; row++) {
           for (let col = 0; col < columns; col++) {
             page.drawImage(watermarkImage, {
-              x: col * watermarkWidth,
-              y: height - (watermarkHeight * (row + 1)),
+              x: col * (watermarkWidth + spacingX),
+              y: height - (watermarkHeight * (row + 1)) - (spacingY * row),
               width: watermarkWidth,
               height: watermarkHeight,
             });
@@ -458,10 +462,24 @@ const App: React.FC = () => {
     <div className="app">
       {contextHolder}
       <div className="header">
-        <div className="logo_text">WaterMarks for PDF</div>
+        <div className="logo_text">WaterMarks Tool</div>
         <Button type="text" style={{ color: 'white' }} onClick={() => { window.open('https://github.com/zhengpq/pdf-watermark', '_blank') }} icon={<GithubOutlined></GithubOutlined>}></Button>
       </div>
-      <div className="main">
+      
+      <Tabs
+        activeKey={activeTab}
+        onChange={setActiveTab}
+        items={[
+          {
+            key: 'pdf',
+            label: (
+              <span>
+                <FilePdfOutlined />
+                PDF水印
+              </span>
+            ),
+            children: (
+              <div className="main">
         <div className="left">
           <div className={classNames('left_inner', { 'left_inner_active': !!imageList[currentImage] })}>
             {imageList.length > 0 && (
@@ -669,7 +687,8 @@ const App: React.FC = () => {
                         controls={false} 
                         onKeyDown={handlePreventKeyEvent} 
                         size="small" 
-                        min={-50} 
+                        min={0} 
+                        max={100}
                         value={textPadding} 
                         onChange={(value) => { if (value !== null) { setTextPadding(value) } }}
                       />
@@ -718,7 +737,22 @@ const App: React.FC = () => {
             {!exportDisabled && <Button type="primary" onClick={handleDownload} style={{ width: '100%' }}>导出文件</Button>}
           </div>
         </div>
-      </div>
+              </div>
+            )
+          },
+          {
+            key: 'image',
+            label: (
+              <span>
+                <FileImageOutlined />
+                图片水印
+              </span>
+            ),
+            children: <ImageWatermark />
+          }
+        ]}
+        style={{ height: 'calc(100vh - 48px)' }}
+      />
     </div>
   );
 }
