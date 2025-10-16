@@ -345,6 +345,15 @@ module.exports = function (webpackEnv) {
           exclude: /@babel(?:\/|\\{1,2})runtime/,
           test: /\.(js|mjs|jsx|ts|tsx|css)$/,
           loader: require.resolve('source-map-loader'),
+          options: {
+            filterSourceMappingUrl: (url, resourcePath) => {
+              // Ignore source map warnings for react-zoom-pan-pinch package
+              if (resourcePath.includes('react-zoom-pan-pinch')) {
+                return false;
+              }
+              return true;
+            },
+          },
         },
         {
           // "oneOf" will traverse all following loaders until one will

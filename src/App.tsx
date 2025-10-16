@@ -8,8 +8,15 @@ import { TransformComponent, TransformWrapper, ReactZoomPanPinchRef } from 'reac
 import './App.css';
 import { chunkArray, getDomCanvas } from './utils';
 import { RcFile } from 'antd/es/upload';
-const work = require('pdfjs-dist/build/pdf.worker')
-pdfjsLib.GlobalWorkerOptions.workerSrc = work
+
+// 配置PDF.js worker
+try {
+  pdfjsLib.GlobalWorkerOptions.workerSrc = require('pdfjs-dist/build/pdf.worker.min.mjs');
+} catch (error) {
+  console.warn('Failed to load PDF.js worker:', error);
+  // 使用CDN作为备用方案
+  pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+}
 
 
 interface WatermarkUnitData {
@@ -67,7 +74,7 @@ const App: React.FC = () => {
   const [watermarkPreviewSize, setWatermarkPreviewSize] = useState(0)
   const [textColor, setTextColor] = useState('rgba(80, 80, 80, 0.3)')
   const [textSize, setTextSize] = useState(14)
-  const [rotate, setRotate] = useState(0)
+  const [rotate, setRotate] = useState(45)
   const [textPadding, setTextPadding] = useState(12)
   const [selectedPages, setSelectedPages] = useState<number[]>([])
   const [slideHidden, setSlideHidden] = useState(false)
@@ -99,6 +106,17 @@ const App: React.FC = () => {
   const handlePreventKeyEvent: React.KeyboardEventHandler<HTMLInputElement> = useCallback((event) => {
     event.stopPropagation()
   }, [])
+
+  // 计算基于文字内容和间距的水印单元大小
+  const calculateWatermarkSize = useCallback(() => {
+    if (waterMarkType === WaterMarkType.TEXT) {
+      // 允许负数间距，当间距为负数时可以让水印重叠
+      const minWidth = Math.max(50, waterUnitWidth + textPadding * 2) // 最小宽度50px
+      const minHeight = Math.max(30, waterUnitHeight + textPadding * 2) // 最小高度30px
+      return { width: minWidth, height: minHeight }
+    }
+    return watermarkSize
+  }, [waterMarkType, textPadding, watermarkSize])
 
   const generateWatermarkUnit = useCallback(async () => {
     if (!file) {
@@ -137,7 +155,7 @@ const App: React.FC = () => {
       }
       reader.readAsArrayBuffer(blob)
     })
-  }, [devicePixelRatio, waterMarkValue, messageApi, file, textPadding, waterMarkType])
+  }, [devicePixelRatio, waterMarkValue, messageApi, file, calculateWatermarkSize])
 
   const handleUpload = () => {
     if (uploadInputRef.current) {
@@ -213,16 +231,6 @@ const App: React.FC = () => {
   const handleDeleteText = (index: number) => {
     waterMarkValue.splice(index, 1)
     setWaterMarkValue([...waterMarkValue])
-  }
-  // 计算基于文字内容和间距的水印单元大小
-  const calculateWatermarkSize = () => {
-    if (waterMarkType === WaterMarkType.TEXT) {
-      // 允许负数间距，当间距为负数时可以让水印重叠
-      const minWidth = Math.max(50, waterUnitWidth + textPadding * 2) // 最小宽度50px
-      const minHeight = Math.max(30, waterUnitHeight + textPadding * 2) // 最小高度30px
-      return { width: minWidth, height: minHeight }
-    }
-    return watermarkSize
   }
 
   const currentWatermarkSize = calculateWatermarkSize()
