@@ -69,7 +69,7 @@ const App: React.FC = () => {
   const [imageList, setImageList] = useState<ImageData[]>([])
   const [currentImage, setCurrentImage] = useState(0)
   const [currentPagesChunk, setCurrentPagesChunk] = useState(0)
-  const [waterMarkValue, setWaterMarkValue] = useState<Array<string>>([''])
+  const [waterMarkValue, setWaterMarkValue] = useState<Array<string>>(['xx信息技术有限公司'])
   const [watermarkSize, setWatermarkSize] = useState({ width: waterUnitWidth, height: waterUnitHeight })
   const [watermarkPreviewSize, setWatermarkPreviewSize] = useState(0)
   const [textColor, setTextColor] = useState('rgba(80, 80, 80, 0.3)')
@@ -95,7 +95,7 @@ const App: React.FC = () => {
   const scalePoint = 1600
 
   const reset = useCallback(() => {
-    setWaterMarkValue([''])
+    setWaterMarkValue(['xx信息技术有限公司'])
     setWatermarkSize({
       width: waterUnitWidth,
       height: waterUnitHeight,
