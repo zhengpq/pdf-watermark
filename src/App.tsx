@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import * as pdfjsLib from 'pdfjs-dist';
 import classNames from 'classnames';
 import { PDFDocument } from 'pdf-lib'
-import { Button, Input, Checkbox, Pagination, Popover, Spin, message, ColorPicker, InputNumber, Select, Upload, Tabs } from 'antd'
+import { Button, Input, Checkbox, Pagination, Popover, Spin, message, ColorPicker, InputNumber, Select, Upload, Tabs, Slider } from 'antd'
 import { DeleteFilled, GithubOutlined, MenuOutlined, MinusOutlined, PlusOutlined, RedoOutlined, UploadOutlined, FileImageOutlined, FilePdfOutlined } from '@ant-design/icons'
 import { TransformComponent, TransformWrapper, ReactZoomPanPinchRef } from 'react-zoom-pan-pinch'
 import './App.css';
@@ -77,7 +77,7 @@ const App: React.FC = () => {
   const [textSize, setTextSize] = useState(16)
   const [rotate, setRotate] = useState(30)
   const [textPadding, setTextPadding] = useState(20)
-  const [watermarkDensity, setWatermarkDensity] = useState(2) // 水印密度 1-10
+  const [textOpacity, setTextOpacity] = useState(60) // 不透明度 0-100
   const [selectedPages, setSelectedPages] = useState<number[]>([])
   const [slideHidden, setSlideHidden] = useState(false)
   const [generateWatermarkUnitFinish, setGenerateWatermarkUnitFinish] = useState(false)
@@ -247,16 +247,13 @@ const App: React.FC = () => {
         const page = pdfDoc.getPage(i);
         const { width, height } = page.getSize();
 
-        // 计算水印图片的行数和列数，根据密度调整间距
+        // 计算水印图片的行数和列数
         const watermarkWidth = watermarkSize.width;
         const watermarkHeight = watermarkSize.height;
         
-        // 根据密度计算间距：密度越高，间距越小
-        const densityFactor = watermarkDensity / 5; // 将1-10映射到0.2-2
-        const baseSpacingX = watermarkWidth * 0.5;
-        const baseSpacingY = watermarkHeight * 0.5;
-        const spacingX = baseSpacingX / densityFactor; // 密度高时间距小
-        const spacingY = baseSpacingY / densityFactor;
+        // 使用固定间距
+        const spacingX = watermarkWidth * 0.5;
+        const spacingY = watermarkHeight * 0.5;
         
         const columns = Math.ceil(width / (watermarkWidth + spacingX));
         const rows = Math.ceil(height / (watermarkHeight + spacingY));
@@ -442,13 +439,20 @@ const App: React.FC = () => {
     {
       waterMarkValue.map((item, index) => {
         if (waterMarkType === WaterMarkType.TEXT) {
+          // 将textColor转换为rgba格式并应用不透明度
+          const colorMatch = textColor.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+          const opacity = textOpacity / 100;
+          const finalColor = colorMatch 
+            ? `rgba(${colorMatch[1]}, ${colorMatch[2]}, ${colorMatch[3]}, ${opacity})`
+            : textColor;
+          
           return (
             <div
               key={index}
               className='watermark_item'
               style={{
                 fontSize: `${textSize}px`,
-                color: `${textColor}`,
+                color: finalColor,
                 fontWeight: '400',
                 marginBottom: `${textPadding}px`,
               }}
@@ -701,20 +705,17 @@ const App: React.FC = () => {
                       />
                     </div>
                     <div className="rule_item">
-                      <div className="rule_label">水印密度</div>
+                      <div className="rule_label">不透明度</div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <InputNumber 
-                          controls={false} 
-                          onKeyDown={handlePreventKeyEvent} 
-                          size="small" 
-                          min={1} 
-                          max={10}
-                          value={watermarkDensity} 
-                          onChange={(value) => { if (value !== null) { setWatermarkDensity(value) } }}
-                          style={{ width: '60px' }}
+                        <Slider
+                          value={textOpacity}
+                          onChange={(value) => setTextOpacity(value)}
+                          min={0}
+                          max={100}
+                          style={{ width: '100px' }}
                         />
-                        <span style={{ fontSize: '12px', color: '#666' }}>
-                          {watermarkDensity <= 7 ? '中等' : '密集'}
+                        <span style={{ fontSize: '12px', color: '#666', minWidth: '35px' }}>
+                          {textOpacity}%
                         </span>
                       </div>
                     </div>
