@@ -78,6 +78,7 @@ const App: React.FC = () => {
   const [rotate, setRotate] = useState(30)
   const [textPadding, setTextPadding] = useState(20)
   const [textOpacity, setTextOpacity] = useState(60) // 不透明度 0-100
+  const [watermarkDensity, setWatermarkDensity] = useState(5) // 水印密度 1-10
   const [selectedPages, setSelectedPages] = useState<number[]>([])
   const [slideHidden, setSlideHidden] = useState(false)
   const [generateWatermarkUnitFinish, setGenerateWatermarkUnitFinish] = useState(false)
@@ -251,9 +252,12 @@ const App: React.FC = () => {
         const watermarkWidth = watermarkSize.width;
         const watermarkHeight = watermarkSize.height;
         
-        // 使用固定间距
-        const spacingX = watermarkWidth * 0.5;
-        const spacingY = watermarkHeight * 0.5;
+        // 根据密度计算间距 - 参考图片水印的密度控制逻辑
+        const densityFactor = watermarkDensity / 5; // 将1-10映射到0.2-2
+        const baseSpacingX = watermarkWidth * 0.5;
+        const baseSpacingY = watermarkHeight * 0.5;
+        const spacingX = baseSpacingX / densityFactor; // 密度高时间距小
+        const spacingY = baseSpacingY / densityFactor;
         
         const columns = Math.ceil(width / (watermarkWidth + spacingX));
         const rows = Math.ceil(height / (watermarkHeight + spacingY));
@@ -569,6 +573,7 @@ const App: React.FC = () => {
             </div>
           </div>
           <div className="watermark_unit">
+            <div className="watermark_unit_title">水印单元预览</div>
             <div ref={watermarkUnitRef} style={{ overflow: 'hidden' }}>
               <div
                 style={{
@@ -719,34 +724,23 @@ const App: React.FC = () => {
                         </span>
                       </div>
                     </div>
+                    <div className="rule_item">
+                      <div className="rule_label">水印密度</div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <Slider
+                          value={watermarkDensity}
+                          onChange={(value) => setWatermarkDensity(value)}
+                          min={1}
+                          max={10}
+                          style={{ width: '100px' }}
+                        />
+                        <span style={{ fontSize: '12px', color: '#666', minWidth: '35px' }}>
+                          {watermarkDensity}
+                        </span>
+                      </div>
+                    </div>
                   </>
                 )}
-              </div>
-            </div>
-            <div className="right_section">
-              <div className="right_section_title">
-                <div>水印单元预览</div>
-              </div>
-              <div className="right_section_body">
-                <div className="watermark_unit_preview">
-                  <div style={{ transform: `scale(${previewScale})` }}>
-                    <div
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        flexDirection: 'column',
-                        width: `${currentWatermarkSize.width}px`,
-                        height: `${currentWatermarkSize.height}px`,
-                        padding: `${Math.max(0, waterUnitPadding + textPadding)}px`,
-                        transform: `rotate(${-rotate}deg)`,
-                        transformOrigin: 'center',
-                      }}
-                    >
-                      {waterUnitConttent}
-                    </div>
-                  </div>
-                </div>
               </div>
             </div>
             {isWaterMarkDisaled ? (

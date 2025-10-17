@@ -161,8 +161,21 @@ img {
   position: absolute;
   top: 16px;
   right: 16px;
-  z-index: -1;
+  z-index: 10;
   background-color: white;
+  border: 1px solid var(--transparent-gray-200);
+  border-radius: 8px;
+  padding: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  max-width: 200px;
+}
+
+.watermark_unit_title {
+  font-size: 12px;
+  color: var(--transparent-gray-700);
+  margin-bottom: 8px;
+  text-align: center;
+  font-weight: 500;
 }
 
 .watermark_item {

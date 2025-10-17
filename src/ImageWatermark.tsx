@@ -282,6 +282,7 @@ const ImageWatermark: React.FC = () => {
           </div>
         </div>
         <div className="watermark_unit">
+          <div className="watermark_unit_title">水印单元预览</div>
           <div ref={watermarkUnitRef} style={{ overflow: 'hidden' }}>
             <div
               style={{
@@ -459,46 +460,6 @@ const ImageWatermark: React.FC = () => {
                   <span style={{ fontSize: '12px', color: '#666', minWidth: '35px' }}>
                     {Math.round(watermarkDensity * 10)}%
                   </span>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div className="right_section">
-            <div className="right_section_title">
-              <div>水印单元预览</div>
-            </div>
-            <div className="right_section_body">
-              <div className="watermark_unit_preview">
-                <div style={{ transform: 'scale(0.5)' }}>
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      flexDirection: 'column',
-                      width: '200px',
-                      height: '160px',
-                      padding: '20px',
-                      transform: `rotate(${-watermarkOptions.angle}deg)`,
-                      transformOrigin: 'center',
-                    }}
-                  >
-                    {watermarkTexts.map((text, index) => (
-                      <div
-                        key={index}
-                        className='watermark_item'
-                        style={{
-                          fontSize: `${watermarkOptions.fontSize}px`,
-                          color: `${watermarkOptions.color}`,
-                          fontWeight: '400',
-                          marginBottom: '12px',
-                          opacity: watermarkOptions.opacity,
-                        }}
-                      >
-                        {text}
-                      </div>
-                    ))}
-                  </div>
                 </div>
               </div>
             </div>
