@@ -22,6 +22,7 @@ const ImageWatermark: React.FC = () => {
   
   // 水印配置
   const [watermarkTexts, setWatermarkTexts] = useState<string[]>(['xx信息技术有限公司']);
+  const [watermarkDensity, setWatermarkDensity] = useState(5); // 水印密度 1-10
   const [watermarkOptions, setWatermarkOptions] = useState<Omit<ImageWatermarkOptions, 'text'>>({
     fontSize: 24,
     color: 'rgba(80, 80, 80, 0.3)', // 适中的透明度，确保水印可见
@@ -103,7 +104,8 @@ const ImageWatermark: React.FC = () => {
     try {
       const fullOptions: ImageWatermarkOptions = {
         ...watermarkOptions,
-        text: watermarkTexts[0] || 'xx信息技术有限公司'
+        text: watermarkTexts[0] || 'xx信息技术有限公司',
+        density: watermarkDensity // 添加密度参数
       };
       
       // 使用多条水印平铺功能
@@ -113,7 +115,7 @@ const ImageWatermark: React.FC = () => {
       console.error('处理图片失败:', error);
       return null;
     }
-  }, [watermarkOptions, watermarkTexts]);
+  }, [watermarkOptions, watermarkTexts, watermarkDensity]);
 
   // 生成水印单元
   const generateWatermarkUnit = useCallback(async () => {
@@ -438,6 +440,24 @@ const ImageWatermark: React.FC = () => {
                   max={100}
                   style={{ width: '100px' }}
                 />
+              </div>
+              <div className="rule_item">
+                <div className="rule_label">水印密度</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <InputNumber 
+                    controls={false} 
+                    onKeyDown={handlePreventKeyEvent} 
+                    size="small" 
+                    min={1} 
+                    max={10}
+                    value={watermarkDensity} 
+                    onChange={(value) => { if (value !== null) { setWatermarkDensity(value) } }}
+                    style={{ width: '60px' }}
+                  />
+                  <span style={{ fontSize: '12px', color: '#666' }}>
+                    {watermarkDensity <= 3 ? '稀疏' : watermarkDensity <= 7 ? '中等' : '密集'}
+                  </span>
+                </div>
               </div>
             </div>
           </div>

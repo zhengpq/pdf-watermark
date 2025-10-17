@@ -9,6 +9,7 @@ export interface ImageWatermarkOptions {
   position: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | 'center';
   offsetX: number;
   offsetY: number;
+  density?: number; // 水印密度 1-10
 }
 
 /**
@@ -51,9 +52,11 @@ export async function addWatermarkToImage(
       console.log('水印文字:', textsToDraw);
       console.log('水印选项:', options);
       
-      // 计算水印间距 - 降低密度到原来的五分之一
-      // 使用更大的间距，让水印更加稀疏
-      const spacing = Math.max(options.fontSize * 15, 400); // 大幅增加间距，降低密度
+      // 计算水印间距 - 根据密度参数调整
+      const density = options.density || 5; // 默认密度为5
+      const densityFactor = density / 5; // 将1-10映射到0.2-2
+      const baseSpacing = Math.max(options.fontSize * 3, 80);
+      const spacing = baseSpacing / densityFactor; // 密度高时间距小
       console.log('水印间距:', spacing);
       
       // 平铺水印

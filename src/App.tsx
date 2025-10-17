@@ -77,6 +77,7 @@ const App: React.FC = () => {
   const [textSize, setTextSize] = useState(16)
   const [rotate, setRotate] = useState(30)
   const [textPadding, setTextPadding] = useState(20)
+  const [watermarkDensity, setWatermarkDensity] = useState(5) // 水印密度 1-10
   const [selectedPages, setSelectedPages] = useState<number[]>([])
   const [slideHidden, setSlideHidden] = useState(false)
   const [generateWatermarkUnitFinish, setGenerateWatermarkUnitFinish] = useState(false)
@@ -246,11 +247,17 @@ const App: React.FC = () => {
         const page = pdfDoc.getPage(i);
         const { width, height } = page.getSize();
 
-        // 计算水印图片的行数和列数，增加间距避免过于密集
+        // 计算水印图片的行数和列数，根据密度调整间距
         const watermarkWidth = watermarkSize.width;
         const watermarkHeight = watermarkSize.height;
-        const spacingX = watermarkWidth * 0.5; // 增加水平间距
-        const spacingY = watermarkHeight * 0.5; // 增加垂直间距
+        
+        // 根据密度计算间距：密度越高，间距越小
+        const densityFactor = watermarkDensity / 5; // 将1-10映射到0.2-2
+        const baseSpacingX = watermarkWidth * 0.5;
+        const baseSpacingY = watermarkHeight * 0.5;
+        const spacingX = baseSpacingX / densityFactor; // 密度高时间距小
+        const spacingY = baseSpacingY / densityFactor;
+        
         const columns = Math.ceil(width / (watermarkWidth + spacingX));
         const rows = Math.ceil(height / (watermarkHeight + spacingY));
 
@@ -692,6 +699,24 @@ const App: React.FC = () => {
                         value={textPadding} 
                         onChange={(value) => { if (value !== null) { setTextPadding(value) } }}
                       />
+                    </div>
+                    <div className="rule_item">
+                      <div className="rule_label">水印密度</div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <InputNumber 
+                          controls={false} 
+                          onKeyDown={handlePreventKeyEvent} 
+                          size="small" 
+                          min={1} 
+                          max={10}
+                          value={watermarkDensity} 
+                          onChange={(value) => { if (value !== null) { setWatermarkDensity(value) } }}
+                          style={{ width: '60px' }}
+                        />
+                        <span style={{ fontSize: '12px', color: '#666' }}>
+                          {watermarkDensity <= 3 ? '稀疏' : watermarkDensity <= 7 ? '中等' : '密集'}
+                        </span>
+                      </div>
                     </div>
                   </>
                 )}
