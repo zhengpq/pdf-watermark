@@ -77,7 +77,7 @@ const App: React.FC = () => {
   const [textSize, setTextSize] = useState(16)
   const [rotate, setRotate] = useState(30)
   const [textPadding, setTextPadding] = useState(20)
-  const [watermarkDensity, setWatermarkDensity] = useState(5) // 水印密度 1-10
+  const [watermarkDensity, setWatermarkDensity] = useState(2) // 水印密度 1-10
   const [selectedPages, setSelectedPages] = useState<number[]>([])
   const [slideHidden, setSlideHidden] = useState(false)
   const [generateWatermarkUnitFinish, setGenerateWatermarkUnitFinish] = useState(false)
@@ -714,7 +714,7 @@ const App: React.FC = () => {
                           style={{ width: '60px' }}
                         />
                         <span style={{ fontSize: '12px', color: '#666' }}>
-                          {watermarkDensity <= 3 ? '稀疏' : watermarkDensity <= 7 ? '中等' : '密集'}
+                          {watermarkDensity <= 7 ? '中等' : '密集'}
                         </span>
                       </div>
                     </div>

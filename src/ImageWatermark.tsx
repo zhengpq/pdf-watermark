@@ -22,11 +22,11 @@ const ImageWatermark: React.FC = () => {
   
   // 水印配置
   const [watermarkTexts, setWatermarkTexts] = useState<string[]>(['xx信息技术有限公司']);
-  const [watermarkDensity, setWatermarkDensity] = useState(5); // 水印密度 1-10
+  const [watermarkDensity, setWatermarkDensity] = useState(2); // 水印密度 1-10
   const [watermarkOptions, setWatermarkOptions] = useState<Omit<ImageWatermarkOptions, 'text'>>({
     fontSize: 24,
-    color: 'rgba(80, 80, 80, 0.3)', // 适中的透明度，确保水印可见
-    opacity: 0.3, // 适中的透明度，确保水印可见
+    color: 'rgba(80, 80, 80, 0.6)', // 适中的不透明度，确保水印可见
+    opacity: 0.6, // 适中的不透明度，确保水印可见
     angle: 30, // 调整角度，与PDF水印一致
     position: 'center',
     offsetX: 0,
@@ -432,30 +432,32 @@ const ImageWatermark: React.FC = () => {
                 />
               </div>
               <div className="rule_item">
-                <div className="rule_label">透明度</div>
-                <Slider
-                  value={watermarkOptions.opacity * 100}
-                  onChange={(value) => updateWatermarkOption('opacity', value / 100)}
-                  min={0}
-                  max={100}
-                  style={{ width: '100px' }}
-                />
+                <div className="rule_label">不透明度</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Slider
+                    value={watermarkOptions.opacity * 100}
+                    onChange={(value) => updateWatermarkOption('opacity', value / 100)}
+                    min={0}
+                    max={100}
+                    style={{ width: '100px' }}
+                  />
+                  <span style={{ fontSize: '12px', color: '#666', minWidth: '35px' }}>
+                    {Math.round(watermarkOptions.opacity * 100)}%
+                  </span>
+                </div>
               </div>
               <div className="rule_item">
                 <div className="rule_label">水印密度</div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <InputNumber 
-                    controls={false} 
-                    onKeyDown={handlePreventKeyEvent} 
-                    size="small" 
-                    min={1} 
+                  <Slider
+                    value={watermarkDensity}
+                    onChange={(value) => setWatermarkDensity(value)}
+                    min={1}
                     max={10}
-                    value={watermarkDensity} 
-                    onChange={(value) => { if (value !== null) { setWatermarkDensity(value) } }}
-                    style={{ width: '60px' }}
+                    style={{ width: '100px' }}
                   />
-                  <span style={{ fontSize: '12px', color: '#666' }}>
-                    {watermarkDensity <= 3 ? '稀疏' : watermarkDensity <= 7 ? '中等' : '密集'}
+                  <span style={{ fontSize: '12px', color: '#666', minWidth: '35px' }}>
+                    {Math.round(watermarkDensity * 10)}%
                   </span>
                 </div>
               </div>

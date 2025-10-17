@@ -343,6 +343,8 @@ img {
 .rule_label {
   margin-right: 18px;
   flex: none;
+  width: 60px;
+  text-align: left;
 }
 
 .rule_body {
